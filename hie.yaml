@@ -1,0 +1,8 @@
+cradle:
+  stack:
+    - path: "./app"
+      component: "box-socket:exe:box-socket"
+    - path: "./src"
+      component: "box-socket:lib"
+    - path: "./test"
+      component: "box-socket:test"

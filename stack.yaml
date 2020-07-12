@@ -1,0 +1,35 @@
+resolver: nightly-2020-06-25
+
+packages:
+  - .
+
+extra-deps:
+  # numhask pack
+  - git: https://github.com/tonyday567/numhask-space
+    commit: 6525f5096525196fe367dabdfe596a7bd0c0aa6c
+  - git: https://github.com/tonyday567/numhask
+    commit: 37ee8dced120f60a511baa6bb6c7ac382b1e8827
+    subdir: numhask-prelude
+  - git: https://github.com/tonyday567/numhask
+    commit: 37ee8dced120f60a511baa6bb6c7ac382b1e8827
+    subdir: numhask
+  - git: https://github.com/tonyday567/numhask
+    commit: 37ee8dced120f60a511baa6bb6c7ac382b1e8827
+    subdir: numhask-hedgehog
+  - git: https://github.com/tonyday567/numhask-array
+    commit: 7f3d74e08c256e7cc846d348784b27e0467b00ec
+
+  # box pack
+  - git: https://github.com/tonyday567/box
+    commit: 6df3c4542ead135d31d0e1d7d06dcc2052915079
+  - git: https://github.com/tonyday567/box-csv
+    commit: 7d012cdb90c0172bea46e67945505acc2abcf1da
+  - git: https://github.com/tonyday567/web-rep
+    commit: 3bd6b82c33a80b4f7c785e042839be9d12fab3de
+  - javascript-bridge-0.2.0
+  - git: https://github.com/tonyday567/chart-svg
+    commit: eb6f1647f6d76950c16d76a7a944dcd4e4a8129a
+  - Color-0.1.4
+
+  # sockets
+  - wai-transformers-0.1.0
