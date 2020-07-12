@@ -14,8 +14,6 @@ module Box.Socket
     clientApp,
     responderApp,
     serverApp,
-    serveBox,
-    serveBox',
     receiver',
     receiver,
     sender,
@@ -31,10 +29,6 @@ import Data.Generics.Labels ()
 import Control.Monad.Conc.Class as C
 import Control.Monad.Catch
 import qualified Control.Concurrent.Classy.Async as C
-import Network.Wai.Handler.WebSockets
-import Web.Page
-import Web.Scotty
-import Network.Wai
 
 data SocketConfig
   = SocketConfig
@@ -85,19 +79,6 @@ serverApp (Box c e) p = void $ with (connect p)
   (\conn -> C.race
     (receiver c conn)
     (sender (Box mempty e) conn))
-
-serveBox :: SocketConfig -> Page -> Box IO Text Text -> IO ()
-serveBox cfg p b =
-  scotty (cfg ^. #port) $ do
-    middleware $ websocketsOr WS.defaultConnectionOptions (serverApp b)
-    servePageWith "/" (defaultPageConfig "") p
-
-serveBox' :: SocketConfig -> Page -> Middleware -> Box IO Text Text -> IO ()
-serveBox' cfg p m b =
-  scotty (cfg ^. #port) $ do
-    middleware $ m
-    middleware $ websocketsOr WS.defaultConnectionOptions (serverApp b)
-    servePageWith "/" (defaultPageConfig "") p
 
 -- | default websocket receiver
 -- Lefts are info/debug
