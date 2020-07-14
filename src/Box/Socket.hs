@@ -47,12 +47,15 @@ runClient c app = liftIO $ WS.runClient (unpack $ c ^. #host) (c ^. #port) (unpa
 runServer :: (MonadIO m) => SocketConfig -> WS.ServerApp -> m ()
 runServer c app = liftIO $ WS.runServer (unpack $ c ^. #host) (c ^. #port) app
 
-connect :: (MonadMask m, MonadIO m) => WS.PendingConnection -> Cont m WS.Connection
+connect :: (MonadIO m, MonadConc m) => WS.PendingConnection -> Cont m WS.Connection
 connect p = Cont $ \action ->
     bracket
       (liftIO $ WS.acceptRequest p)
       (\conn -> liftIO $ WS.sendClose conn ("Bye from connect!" :: Text))
-      action
+      (\conn ->
+         C.withAsync
+         (liftIO $ forever $ WS.sendPing conn ("ping" :: ByteString) >> sleep 30)
+         (\_ -> action conn))
 
 clientApp :: (MonadIO m, MonadConc m) =>
   Box m (Either Text Text) Text ->
