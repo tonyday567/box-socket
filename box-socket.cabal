@@ -22,28 +22,13 @@ library
     src
   build-depends:
     base >= 4.12 && <5,
-    aeson >= 1.4.5 && < 1.5,
-    attoparsec >= 0.13.2 && < 0.14,
     box >= 0.5,
     concurrency >= 1.11,
     exceptions >= 0.10,
     generic-lens >= 1.1.0 && < 3.0,
-    interpolatedstring-perl6 >= 1.0.2 && < 1.1,
     lens >= 4.17.1 && < 4.20,
-    lucid >= 2.9 && < 2.10,
-    mtl >= 2.2.2 && < 2.3,
-    numhask-prelude >= 0.6,
-    scotty >= 0.11.5 && < 0.12,
-    text >= 1.2.3 && < 1.3,
-    transformers >= 0.5.6 && < 0.6,
-    unordered-containers >= 0.2.10 && < 0.3,
-    wai-middleware-static >= 0.8.2 && < 0.9,
+    numhask >= 0.6,
     websockets >= 0.12,
-    web-rep,
-    wai,
-    wai-websockets,
-    wai-transformers,
-    warp,
   default-language: Haskell2010
   default-extensions:
     NegativeLiterals
@@ -65,25 +50,10 @@ executable box-socket
     box,
     box-socket,
     concurrency >= 1.11,
-    exceptions >= 0.10,
     generic-lens >= 2.0,
-    interpolatedstring-perl6 >= 1.0.2 && < 1.1,
     lens >= 4.19,
-    lucid >= 2.9,
-    numhask-prelude >= 0.6,
+    numhask >= 0.6,
     optparse-generic >= 1.3,
-    scotty >= 0.11.5 && < 0.12,
-    text >= 1.2.3 && < 1.3,
-    websockets >= 0.12,
-    web-rep,
-    wai,
-    wai-websockets,
-    wai-transformers,
-    warp,
-    streaming,
-    aeson,
-    attoparsec >= 0.13,
-    unordered-containers >= 0.2,
   default-language: Haskell2010
   default-extensions:
     NegativeLiterals
@@ -106,7 +76,7 @@ test-suite test
     base >=4.7 && <5,
     box-socket,
     doctest >= 0.16,
-    numhask-prelude >= 0.6,
+    numhask >= 0.6,
   default-language: Haskell2010
   default-extensions:
     NegativeLiterals

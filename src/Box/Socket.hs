@@ -14,8 +14,6 @@ module Box.Socket
     clientApp,
     responderApp,
     serverApp,
-    serveBox,
-    serveBox',
     receiver',
     receiver,
     sender,
@@ -31,10 +29,6 @@ import Data.Generics.Labels ()
 import Control.Monad.Conc.Class as C
 import Control.Monad.Catch
 import qualified Control.Concurrent.Classy.Async as C
-import Network.Wai.Handler.WebSockets
-import Web.Page
-import Web.Scotty
-import Network.Wai
 
 data SocketConfig
   = SocketConfig
@@ -53,12 +47,15 @@ runClient c app = liftIO $ WS.runClient (unpack $ c ^. #host) (c ^. #port) (unpa
 runServer :: (MonadIO m) => SocketConfig -> WS.ServerApp -> m ()
 runServer c app = liftIO $ WS.runServer (unpack $ c ^. #host) (c ^. #port) app
 
-connect :: (MonadMask m, MonadIO m) => WS.PendingConnection -> Cont m WS.Connection
+connect :: (MonadIO m, MonadConc m) => WS.PendingConnection -> Cont m WS.Connection
 connect p = Cont $ \action ->
     bracket
       (liftIO $ WS.acceptRequest p)
       (\conn -> liftIO $ WS.sendClose conn ("Bye from connect!" :: Text))
-      action
+      (\conn ->
+         C.withAsync
+         (liftIO $ forever $ WS.sendPing conn ("ping" :: ByteString) >> sleep 30)
+         (\_ -> action conn))
 
 clientApp :: (MonadIO m, MonadConc m) =>
   Box m (Either Text Text) Text ->
@@ -85,19 +82,6 @@ serverApp (Box c e) p = void $ with (connect p)
   (\conn -> C.race
     (receiver c conn)
     (sender (Box mempty e) conn))
-
-serveBox :: SocketConfig -> Page -> Box IO Text Text -> IO ()
-serveBox cfg p b =
-  scotty (cfg ^. #port) $ do
-    middleware $ websocketsOr WS.defaultConnectionOptions (serverApp b)
-    servePageWith "/" (defaultPageConfig "") p
-
-serveBox' :: SocketConfig -> Page -> Middleware -> Box IO Text Text -> IO ()
-serveBox' cfg p m b =
-  scotty (cfg ^. #port) $ do
-    middleware $ m
-    middleware $ websocketsOr WS.defaultConnectionOptions (serverApp b)
-    servePageWith "/" (defaultPageConfig "") p
 
 -- | default websocket receiver
 -- Lefts are info/debug
