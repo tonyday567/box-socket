@@ -5,20 +5,9 @@ packages:
 
 extra-deps:
   # numhask pack
-  - git: https://github.com/tonyday567/numhask-space
-    commit: 6525f5096525196fe367dabdfe596a7bd0c0aa6c
   - git: https://github.com/tonyday567/numhask
-    commit: 37ee8dced120f60a511baa6bb6c7ac382b1e8827
-    subdir: numhask-prelude
-  - git: https://github.com/tonyday567/numhask
-    commit: 37ee8dced120f60a511baa6bb6c7ac382b1e8827
-    subdir: numhask
-  - git: https://github.com/tonyday567/numhask
-    commit: 37ee8dced120f60a511baa6bb6c7ac382b1e8827
-    subdir: numhask-hedgehog
-  - git: https://github.com/tonyday567/numhask-array
-    commit: 7f3d74e08c256e7cc846d348784b27e0467b00ec
+    commit: 1dcb82dc7e503605bac193c64fe82c1b35ca9fcd
 
   # box pack
   - git: https://github.com/tonyday567/box
-    commit: c646bd417574366b0c2d5ff529974ad55e202783
+    commit: 34819c01063456c9d17178d6ebd3be4cd8ed799d
