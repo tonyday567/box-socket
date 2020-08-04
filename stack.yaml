@@ -4,7 +4,5 @@ packages:
   - .
 
 extra-deps:
-  - numhask-0.6.0
-  # - box-0.5.0
-  - git: https://github.com/tonyday567/box
-    commit: f4f700337993c8dc4b6e867c6a498f26c8843dde
+  - numhask-0.6.0.2
+  - box-0.6.0

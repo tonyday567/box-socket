@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name:          box-socket
-version:       0.0.1
+version:       0.0.2
 synopsis: See readme.md
 description: See readme.md for description.
 category: project
@@ -22,7 +22,7 @@ library
     src
   build-depends:
     base >= 4.12 && <5,
-    box >= 0.5,
+    box >= 0.6 && < 0.7,
     concurrency >= 1.11,
     exceptions >= 0.10,
     generic-lens >= 1.1.0 && < 3.0,

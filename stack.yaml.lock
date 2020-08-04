@@ -5,23 +5,19 @@
 
 packages:
 - completed:
-    hackage: numhask-0.6.0@sha256:f272b77dde4b598dd3af2fd12a2bf7abb3c296295ebc3fafefa628ee6726be39,1621
+    hackage: numhask-0.6.0.2@sha256:f887f535fad2dfe14180bdb1793ce62afb330d07aaa81f9366914cda1e7cdcd4,1623
     pantry-tree:
       size: 1656
-      sha256: 9f6c30b5217b3e8b32cec46ae8b2b2831a84949b4be3c714fe571077cf4a6542
+      sha256: a1b4227c1f36f4ab30f4e372b72d3092a06c7e18e9c7d7be7e832f0188a1927e
   original:
-    hackage: numhask-0.6.0
+    hackage: numhask-0.6.0.2
 - completed:
-    name: box
-    version: 0.5.0
-    git: https://github.com/tonyday567/box
+    hackage: box-0.6.0@sha256:7685a0f18d3bc2c0ebaeb971ea7ae5775453ceb18b8d5767f058336e8ba8874d,3291
     pantry-tree:
-      size: 1350
-      sha256: 039f9c7eebba11f9b3842dcb3918122ecb93fbd6580f68affb7399ccb31c0fbf
-    commit: f4f700337993c8dc4b6e867c6a498f26c8843dde
+      size: 889
+      sha256: 6b16610048c3137a9c7c88638e59164e15415ebac1aa29e7c14228ad0161a3c4
   original:
-    git: https://github.com/tonyday567/box
-    commit: f4f700337993c8dc4b6e867c6a498f26c8843dde
+    hackage: box-0.6.0
 snapshots:
 - completed:
     size: 503181
