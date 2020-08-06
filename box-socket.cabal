@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name:          box-socket
-version:       0.0.2
+version:       0.1.0
 synopsis: See readme.md
 description: See readme.md for description.
 category: project
@@ -18,6 +18,7 @@ source-repository head
 library
   exposed-modules:
     Box.Socket
+    Box.TCP
   hs-source-dirs:
     src
   build-depends:
@@ -27,6 +28,8 @@ library
     exceptions >= 0.10,
     generic-lens >= 1.1.0 && < 3.0,
     lens >= 4.17.1 && < 4.20,
+    network,
+    bytestring,
     numhask >= 0.6,
     websockets >= 0.12,
   default-language: Haskell2010
