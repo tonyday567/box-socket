@@ -32,6 +32,7 @@ library
     bytestring,
     numhask >= 0.6,
     websockets >= 0.12,
+    network-simple,
   default-language: Haskell2010
   default-extensions:
     NegativeLiterals

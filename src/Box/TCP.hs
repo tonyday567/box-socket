@@ -1,70 +1,132 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Box.TCP where
+module Box.TCP
+  ( TCPConfig(..),
+    defaultTCPConfig,
+    Env(..),
+    defaultVersion,
+    new,
+    close,
+    tcpEmitter,
+    tcpCommitter,
+    tcpBox,
+    tcpServer,
+    tcpResponder,
+    tcpSender,
+    tcpStdClient,
+    testHarness,
+    testResponder,
+    testServerSender,
+  ) where
 
 import Box
-import NumHask.Prelude hiding (handle)
-import qualified Network.Socket as S
-import System.IO (hClose, BufferMode(..), hSetBuffering)
-import GHC.IO.Handle (hFlushAll)
-import System.IO (hIsOpen)
-import qualified Prelude as P
+import NumHask.Prelude hiding (handle, check)
+import Network.Simple.TCP
+import Control.Lens
 
 data TCPConfig
   = TCPConfig
       { host :: Text,
-        port :: Int,
-        clientId :: Int,
-        extraAuth :: Bool
+        port :: Text
       }
   deriving (Show, Eq, Generic)
 
 defaultTCPConfig :: TCPConfig
-defaultTCPConfig = TCPConfig "127.0.0.1" 7496 0 False
+defaultTCPConfig = TCPConfig "127.0.0.1" "3566"
+-- ib 7496
 
 -- | an active
 data Env
   = Env
-      { handle :: Handle,
+      { socket :: Socket,
+        sockaddr :: SockAddr,
         ascreendump :: Maybe (Async ()),
-        afiledump :: Maybe (Async ()),
-        box :: Box IO Text Text
+        afiledump :: Maybe (Async ())
       }
 
 defaultVersion :: Text
 defaultVersion = "11"
 
-lineBox :: Handle -> Box IO Text Text
-lineBox h = Box (handleC h) (handleE h)
-
 -- | Connects to a server
 new ::
   -- | Configuration
   TCPConfig ->
-  (Handle -> IO ()) ->
   IO Env
-new cfg hio = do
-  addrinfos <- S.getAddrInfo Nothing (Just $ unpack $ host cfg) (Just $ show (port cfg))
-  let serveraddr = P.head addrinfos
-  s <- S.socket (S.addrFamily serveraddr) S.Stream S.defaultProtocol
-  S.connect s (S.addrAddress serveraddr)
-  h <- S.socketToHandle s ReadWriteMode
-  hSetBuffering h (BlockBuffering Nothing)
-  hio h
-  pure (Env h Nothing Nothing (lineBox h))
+new cfg = do
+  (sock, sa) <- connectSock (unpack $ host cfg) (unpack $ port cfg)
+  pure (Env sock sa Nothing Nothing)
 
 -- | close an Env
 close :: Env -> IO ()
-close e = do
-  hClose (handle e)
-  maybe (pure ()) cancel (ascreendump e)
-  maybe (pure ()) cancel (afiledump e)
+close env = do
+  closeSock (socket env)
+  maybe (pure ()) cancel (ascreendump env)
+  maybe (pure ()) cancel (afiledump env)
 
--- | check an Env
-check :: Env -> IO Text
-check e = do
-  hFlushAll (handle e)
-  o <- hIsOpen (handle e)
-  pure $ ("check: " :: Text) <> bool "closed" "open" o
+tcpEmitter :: Socket -> Emitter IO ByteString
+tcpEmitter s = Emitter $ recv s 2048
+
+tcpCommitter :: Socket -> Committer IO ByteString
+tcpCommitter s = Committer $ \bs -> send s bs *> pure True
+
+tcpBox :: Socket -> Box IO ByteString ByteString
+tcpBox s = Box (tcpCommitter s) (tcpEmitter s)
+
+tcpServer :: TCPConfig -> Box IO ByteString ByteString -> IO ()
+tcpServer cfg (Box c e) =
+  serve HostAny (unpack $ port cfg)
+      (\(s,_) -> void $ do
+          race
+            (glue (tcpCommitter s) e)
+            (glue c (tcpEmitter s)))
+
+responder :: (ByteString -> IO ByteString) -> Box IO ByteString ByteString -> IO ()
+responder f (Box c e) =
+  glue c (mapE (\bs -> Just <$> f bs) e)
+
+--  A server that explicitly responds to client messages.
+tcpResponder :: TCPConfig -> (ByteString -> IO ByteString) -> IO ()
+tcpResponder cfg f =
+  serve HostAny (unpack $ port cfg)
+    (\(s,_) -> responder f (Box (tcpCommitter s) (tcpEmitter s)))
+
+tcpSender :: TCPConfig -> Emitter IO ByteString -> IO ()
+tcpSender cfg e =
+  serve HostAny (unpack $ port cfg)
+    (\(s,_) -> glue (tcpCommitter s) e)
+
+tcpStdClient :: TCPConfig -> IO ()
+tcpStdClient cfg = do
+  (Env s _ _ _) <- new cfg
+  void $ concurrently
+     (glue o (tcpEmitter s))
+     (glue (tcpCommitter s) i)
+  where
+    o = contramap decodeUtf8 toStdout
+    i = fmap encodeUtf8 fromStdin
+
+testHarness :: IO () -> IO ()
+testHarness io =
+  void $ race
+    io
+    (cancelQ fromStdin)
+
+cancelQ :: Emitter IO Text -> IO ()
+cancelQ e = do
+  e' <- emit e
+  case e' of
+    Just "q" -> pure ()
+    Just x -> putStrLn ("badly handled: " <> x)
+    Nothing -> pure ()
+
+testResponder :: IO ()
+testResponder = testHarness (tcpResponder defaultTCPConfig (pure . ("echo: " <>)))
+
+testServerSender :: IO ()
+testServerSender = testHarness $
+  tcpSender defaultTCPConfig <$.> (fromListE ["hi!"])
+
+
+
 
