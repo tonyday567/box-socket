@@ -81,8 +81,7 @@ tClient xs = do
   runClient defaultSocketConfig
     (\conn ->
        (\b -> clientApp b conn) <$.>
-       (Box <$>
-        pure c <*>
+       (Box c <$>
         fromListE (xs <> ["q"])))
   r
 
