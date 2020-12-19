@@ -3,9 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wall #-}
@@ -35,7 +33,7 @@ instance ParseRecord SocketType
 
 instance ParseFields SocketType
 
-data Opts w
+newtype Opts w
   = Opts
       { apptype :: w ::: SocketType <?> "type of websocket app"
       }
@@ -70,7 +68,7 @@ cancelQ e = do
   e' <- emit e
   case e' of
     Just "q" -> pure ()
-    _ -> do
+    _notQ -> do
       putStrLn ("nothing happens" :: Text)
       cancelQ e
 
@@ -88,7 +86,7 @@ tClient xs = do
 tClientIO :: [Text] -> IO ()
 tClientIO xs =
   (runClient defaultSocketConfig . clientApp) <$.>
-  (Box (contramap show toStdout) <$> (fromListE (xs <> ["q"])))
+  (Box (contramap show toStdout) <$> fromListE (xs <> ["q"]))
 
 -- | main test run of client-server functionality
 -- the code starts a server in a thread, starts the client in the main thread, and cancels the server on completion.
