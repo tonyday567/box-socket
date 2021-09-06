@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE StrictData #-}
 {-# OPTIONS_GHC -Wall #-}
 
@@ -27,7 +26,13 @@ where
 import Box
 import Control.Lens
 import Network.Simple.TCP
-import NumHask.Prelude hiding (check, handle)
+import Data.Text (Text, unpack)
+import GHC.Generics
+import Data.ByteString (ByteString)
+import Control.Monad
+import Control.Concurrent.Async
+import Data.Functor
+import Data.Text.Encoding
 
 -- | TCP configuration
 --
@@ -141,7 +146,7 @@ cancelQ e = do
   e' <- emit e
   case e' of
     Just "q" -> pure ()
-    Just x -> putStrLn ("badly handled: " <> x)
+    Just x -> putStrLn ("badly handled: " <> unpack x)
     Nothing -> pure ()
 
 -- | @"echo: " <>@ Responder

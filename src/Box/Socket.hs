@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE StrictData #-}
 {-# OPTIONS_GHC -Wall #-}
 
@@ -29,7 +28,12 @@ import Control.Monad.Catch
 import Control.Monad.Conc.Class as C
 import Data.Generics.Labels ()
 import qualified Network.WebSockets as WS
-import NumHask.Prelude hiding (bracket)
+import Data.Text (Text, pack, unpack)
+import Control.Monad.IO.Class
+import GHC.Generics
+import qualified Data.ByteString as BS
+import Data.Void
+import Control.Monad
 
 -- | Socket configuration
 --
@@ -62,7 +66,7 @@ connect p = Cont $ \action ->
     (\conn -> liftIO $ WS.sendClose conn ("Bye from connect!" :: Text))
     ( \conn ->
         C.withAsync
-          (liftIO $ forever $ WS.sendPing conn ("ping" :: ByteString) >> sleep 30)
+          (liftIO $ forever $ WS.sendPing conn ("ping" :: BS.ByteString) >> sleep 30)
           (\_ -> action conn)
     )
 
@@ -117,7 +121,7 @@ receiver' c conn = go
           commit
             c
             ( Left
-                ( "receiver: received: close: " <> show w <> " " <> show b
+                ( "receiver: received: close: " <> (pack $ show w) <> " " <> (pack $ show b)
                 )
             )
         WS.ControlMessage _ -> go
@@ -152,7 +156,7 @@ sender (Box c e) conn = forever $ do
   case msg of
     Nothing -> pure ()
     Just msg' -> do
-      _ <- commit c $ "sender: sending: " <> (show msg' :: Text)
+      _ <- commit c $ "sender: sending: " <> ((pack . show) msg' :: Text)
       liftIO $ WS.sendTextData conn msg'
 
 -- | A receiver that responds based on received Text.

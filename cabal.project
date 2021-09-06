@@ -1,5 +1,5 @@
-packages: box-socket.cabal
-
-keep-going: true
+packages:
+  box-socket.cabal
+  ../box/box.cabal
 
 allow-newer: websockets:random
