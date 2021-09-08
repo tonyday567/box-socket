@@ -24,15 +24,15 @@ module Box.TCP
 where
 
 import Box
-import Control.Lens
-import Network.Simple.TCP
-import Data.Text (Text, unpack)
-import GHC.Generics
-import Data.ByteString (ByteString)
-import Control.Monad
 import Control.Concurrent.Async
+import Control.Lens
+import Control.Monad
+import Data.ByteString (ByteString)
 import Data.Functor
+import Data.Text (Text, unpack)
 import Data.Text.Encoding
+import GHC.Generics
+import Network.Simple.TCP
 
 -- | TCP configuration
 --

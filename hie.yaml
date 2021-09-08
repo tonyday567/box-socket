@@ -3,4 +3,4 @@ cradle:
     - path: "./app"
       component: "box-socket:exe:box-socket"
     - path: "./src"
-      component: "box-socket:lib"
+      component: "box-socket:lib:box-socket"

@@ -1,5 +1,4 @@
 packages:
   box-socket.cabal
-  ../box/box.cabal
 
-allow-newer: websockets:random
+allow-newer: attoparsec

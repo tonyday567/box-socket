@@ -6,11 +6,7 @@ box-socket
 flow
 ----
 
-```
-stack build --exec "$(stack path --local-install-root)/bin/box-socket" --file-watch
-```
-
-Should produce:
+`testRun` in app/app.hs should produce:
 
 ```
 [Left "receiver: received: echo:1",Right "echo:1",Left "receiver: received: echo:2",Right "echo:2",Left "receiver: received: echo:3",Right "echo:3",Left "receiver: received: close: 1000 \"received close signal: responder closed.\""]

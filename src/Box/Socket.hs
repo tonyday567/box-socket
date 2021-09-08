@@ -24,16 +24,15 @@ where
 import Box
 import qualified Control.Concurrent.Classy.Async as C
 import Control.Lens
+import Control.Monad
 import Control.Monad.Catch
 import Control.Monad.Conc.Class as C
-import Data.Generics.Labels ()
-import qualified Network.WebSockets as WS
-import Data.Text (Text, pack, unpack)
 import Control.Monad.IO.Class
-import GHC.Generics
 import qualified Data.ByteString as BS
-import Data.Void
-import Control.Monad
+import Data.Generics.Labels ()
+import Data.Text (Text, pack, unpack)
+import GHC.Generics
+import qualified Network.WebSockets as WS
 
 -- | Socket configuration
 --
@@ -121,7 +120,7 @@ receiver' c conn = go
           commit
             c
             ( Left
-                ( "receiver: received: close: " <> (pack $ show w) <> " " <> (pack $ show b)
+                ( "receiver: received: close: " <> (pack . show) w <> " " <> (pack . show) b
                 )
             )
         WS.ControlMessage _ -> go
