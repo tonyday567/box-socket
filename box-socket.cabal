@@ -11,6 +11,7 @@ license:       BSD-3-Clause
 homepage:      https://github.com/tonyday567/box-socket#readme
 bug-reports:   https://github.com/tonyday567/box-socket/issues
 build-type:    Simple
+tested-with:   GHC ==8.8.4 || ==8.10.4 || ==9.0.1 || ==9.2.0.20210821
 
 source-repository head
   type:     git
