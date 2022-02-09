@@ -23,12 +23,12 @@ module Box.TCP
   )
 where
 
-import Box
+import Box hiding (close)
 import Control.Concurrent.Async
-import Control.Lens
 import Control.Monad
 import Data.ByteString (ByteString)
 import Data.Functor
+import Data.Functor.Contravariant
 import Data.Text (Text, unpack)
 import Data.Text.Encoding
 import GHC.Generics
@@ -101,8 +101,7 @@ tcpServer cfg (Box c e) =
 
 -- | Response function.
 responder :: (ByteString -> IO ByteString) -> Box IO ByteString ByteString -> IO ()
-responder f (Box c e) =
-  glue c (mapE (fmap Just . f) e)
+responder f = fuse (fmap Just . f)
 
 -- | A server that explicitly responds to client messages.
 tcpResponder :: TCPConfig -> (ByteString -> IO ByteString) -> IO ()
@@ -157,4 +156,4 @@ testResponder = testHarness (tcpResponder defaultTCPConfig (pure . ("echo: " <>)
 testServerSender :: IO ()
 testServerSender =
   testHarness $
-    tcpSender defaultTCPConfig <$.> fromListE ["hi!"]
+    tcpSender defaultTCPConfig <$|> qList ["hi!"]

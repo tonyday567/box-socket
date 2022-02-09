@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
 {-# OPTIONS_GHC -Wall #-}
@@ -23,13 +22,11 @@ where
 
 import Box
 import qualified Control.Concurrent.Classy.Async as C
-import Control.Lens
 import Control.Monad
 import Control.Monad.Catch
 import Control.Monad.Conc.Class as C
 import Control.Monad.IO.Class
 import qualified Data.ByteString as BS
-import Data.Generics.Labels ()
 import Data.Text (Text, pack, unpack)
 import GHC.Generics
 import qualified Network.WebSockets as WS
@@ -51,15 +48,15 @@ defaultSocketConfig = SocketConfig "127.0.0.1" 9160 "/"
 
 -- | Run a client app.
 runClient :: (MonadIO m) => SocketConfig -> WS.ClientApp () -> m ()
-runClient c app = liftIO $ WS.runClient (unpack $ c ^. #host) (c ^. #port) (unpack $ c ^. #path) app
+runClient c app = liftIO $ WS.runClient (unpack $ host c) (port c) (unpack $ path c) app
 
 -- | Run a server app.
 runServer :: (MonadIO m) => SocketConfig -> WS.ServerApp -> m ()
-runServer c app = liftIO $ WS.runServer (unpack $ c ^. #host) (c ^. #port) app
+runServer c app = liftIO $ WS.runServer (unpack $ host c) (port c) app
 
 -- | Connection continuation.
-connect :: (MonadIO m, MonadConc m) => WS.PendingConnection -> Cont m WS.Connection
-connect p = Cont $ \action ->
+connect :: (MonadIO m, MonadConc m) => WS.PendingConnection -> Codensity m WS.Connection
+connect p = Codensity $ \action ->
   bracket
     (liftIO $ WS.acceptRequest p)
     (\conn -> liftIO $ WS.sendClose conn ("Bye from connect!" :: Text))
@@ -86,7 +83,7 @@ responderApp ::
   (Text -> Either Text Text) ->
   WS.PendingConnection ->
   IO ()
-responderApp f p = with (connect p) (responder f mempty)
+responderApp f p = process (responder f mempty) (connect p)
 
 -- | Standard server app for a box.
 serverApp ::
@@ -96,13 +93,13 @@ serverApp ::
   m ()
 serverApp (Box c e) p =
   void $
-    with
-      (connect p)
+    process
       ( \conn ->
           C.race
             (receiver c conn)
             (sender (Box mempty e) conn)
       )
+      (connect p)
 
 -- | default websocket receiver with messages
 -- Lefts are info/debug
