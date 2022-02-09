@@ -17,8 +17,8 @@ import Box
 import Box.Socket
 import Control.Concurrent.Classy.Async as C
 import Data.Bool
-import Data.Text (pack, Text)
 import Data.Functor.Contravariant
+import Data.Text (Text, pack)
 
 serverIO :: IO ()
 serverIO =
