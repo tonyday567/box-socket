@@ -27,7 +27,7 @@ library
   build-depends:
     , async           ^>=2.2.3
     , base            >=4.12  && <5
-    , box             ^>=0.8
+    , box             >=0.9
     , bytestring      >=0.10  && <0.12
     , concurrency     ^>=1.11
     , exceptions      ^>=0.10
