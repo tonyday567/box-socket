@@ -46,21 +46,21 @@ defaultSocketConfig = SocketConfig "127.0.0.1" 9160 "/"
 
 -- | Run a client app.
 runClient :: SocketConfig -> WS.ClientApp () -> IO ()
-runClient c app =  WS.runClient (unpack $ host c) (port c) (unpack $ path c) app
+runClient c app = WS.runClient (unpack $ host c) (port c) (unpack $ path c) app
 
 -- | Run a server app.
 runServer :: SocketConfig -> WS.ServerApp -> IO ()
-runServer c app =  WS.runServer (unpack $ host c) (port c) app
+runServer c app = WS.runServer (unpack $ host c) (port c) app
 
 -- | Connection continuation.
 connect :: WS.PendingConnection -> Codensity IO WS.Connection
 connect p = Codensity $ \action ->
   bracket
-    ( WS.acceptRequest p)
-    (\conn ->  WS.sendClose conn ("Bye from connect!" :: Text))
+    (WS.acceptRequest p)
+    (\conn -> WS.sendClose conn ("Bye from connect!" :: Text))
     ( \conn ->
         withAsync
-          ( forever $ WS.sendPing conn ("ping" :: BS.ByteString) >> sleep 30)
+          (forever $ WS.sendPing conn ("ping" :: BS.ByteString) >> sleep 30)
           (\_ -> action conn)
     )
 
@@ -106,7 +106,7 @@ receiver' ::
 receiver' c conn = go
   where
     go = do
-      msg <-  WS.receive conn
+      msg <- WS.receive conn
       case msg of
         WS.ControlMessage (WS.Close w b) ->
           commit
@@ -159,7 +159,7 @@ responder ::
 responder f c conn = go
   where
     go = do
-      msg <-  WS.receive conn
+      msg <- WS.receive conn
       case msg of
         WS.ControlMessage (WS.Close _ _) -> do
           _ <- commit c "responder: normal close"

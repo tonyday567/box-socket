@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name:          box-socket
-version:       0.3.0
+version:       0.4.0
 synopsis:      Box websockets
 description:   Websockets built with the box library.
 category:      project
