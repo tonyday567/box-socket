@@ -21,11 +21,9 @@ module Box.Socket
 where
 
 import Box
-import qualified Control.Concurrent.Classy.Async as C
+import Control.Concurrent.Async
 import Control.Monad
 import Control.Monad.Catch
-import Control.Monad.Conc.Class as C
-import Control.Monad.IO.Class
 import qualified Data.ByteString as BS
 import Data.Text (Text, pack, unpack)
 import GHC.Generics
@@ -47,34 +45,33 @@ defaultSocketConfig :: SocketConfig
 defaultSocketConfig = SocketConfig "127.0.0.1" 9160 "/"
 
 -- | Run a client app.
-runClient :: (MonadIO m) => SocketConfig -> WS.ClientApp () -> m ()
-runClient c app = liftIO $ WS.runClient (unpack $ host c) (port c) (unpack $ path c) app
+runClient :: SocketConfig -> WS.ClientApp () -> IO ()
+runClient c app =  WS.runClient (unpack $ host c) (port c) (unpack $ path c) app
 
 -- | Run a server app.
-runServer :: (MonadIO m) => SocketConfig -> WS.ServerApp -> m ()
-runServer c app = liftIO $ WS.runServer (unpack $ host c) (port c) app
+runServer :: SocketConfig -> WS.ServerApp -> IO ()
+runServer c app =  WS.runServer (unpack $ host c) (port c) app
 
 -- | Connection continuation.
-connect :: (MonadIO m, MonadConc m) => WS.PendingConnection -> Codensity m WS.Connection
+connect :: WS.PendingConnection -> Codensity IO WS.Connection
 connect p = Codensity $ \action ->
   bracket
-    (liftIO $ WS.acceptRequest p)
-    (\conn -> liftIO $ WS.sendClose conn ("Bye from connect!" :: Text))
+    ( WS.acceptRequest p)
+    (\conn ->  WS.sendClose conn ("Bye from connect!" :: Text))
     ( \conn ->
-        C.withAsync
-          (liftIO $ forever $ WS.sendPing conn ("ping" :: BS.ByteString) >> sleep 30)
+        withAsync
+          ( forever $ WS.sendPing conn ("ping" :: BS.ByteString) >> sleep 30)
           (\_ -> action conn)
     )
 
 -- | A simple client app for a box with Left debug messages.
 clientApp ::
-  (MonadIO m, MonadConc m) =>
-  Box m (Either Text Text) Text ->
+  Box IO (Either Text Text) Text ->
   WS.Connection ->
-  m ()
+  IO ()
 clientApp (Box c e) conn =
   void $
-    C.race
+    race
       (receiver' c conn)
       (sender (Box mempty e) conn)
 
@@ -87,15 +84,14 @@ responderApp f p = process (responder f mempty) (connect p)
 
 -- | Standard server app for a box.
 serverApp ::
-  (MonadConc m, MonadIO m) =>
-  Box m Text Text ->
+  Box IO Text Text ->
   WS.PendingConnection ->
-  m ()
+  IO ()
 serverApp (Box c e) p =
   void $
     process
       ( \conn ->
-          C.race
+          race
             (receiver c conn)
             (sender (Box mempty e) conn)
       )
@@ -104,14 +100,13 @@ serverApp (Box c e) p =
 -- | default websocket receiver with messages
 -- Lefts are info/debug
 receiver' ::
-  (MonadIO m) =>
-  Committer m (Either Text Text) ->
+  Committer IO (Either Text Text) ->
   WS.Connection ->
-  m Bool
+  IO Bool
 receiver' c conn = go
   where
     go = do
-      msg <- liftIO $ WS.receive conn
+      msg <-  WS.receive conn
       case msg of
         WS.ControlMessage (WS.Close w b) ->
           commit
@@ -128,14 +123,13 @@ receiver' c conn = go
 
 -- | Receiver that only commits.
 receiver ::
-  (MonadIO m) =>
-  Committer m Text ->
+  Committer IO Text ->
   WS.Connection ->
-  m ()
+  IO ()
 receiver c conn = go
   where
     go = do
-      msg <- liftIO $ WS.receive conn
+      msg <- WS.receive conn
       case msg of
         WS.ControlMessage (WS.Close _ _) -> pure ()
         WS.ControlMessage _ -> go
@@ -143,41 +137,40 @@ receiver c conn = go
 
 -- | Sender that only emits.
 sender ::
-  (MonadIO m, WS.WebSocketsData a, Show a) =>
-  Box m Text a ->
+  (WS.WebSocketsData a, Show a) =>
+  Box IO Text a ->
   WS.Connection ->
-  m ()
+  IO ()
 sender (Box c e) conn = forever $ do
   msg <- emit e
   case msg of
     Nothing -> pure ()
     Just msg' -> do
       _ <- commit c $ "sender: sending: " <> ((pack . show) msg' :: Text)
-      liftIO $ WS.sendTextData conn msg'
+      WS.sendTextData conn msg'
 
 -- | A receiver that responds based on received Text.
 -- lefts are quit signals. Rights are response text.
 responder ::
-  (MonadIO m) =>
   (Text -> Either Text Text) ->
-  Committer m Text ->
+  Committer IO Text ->
   WS.Connection ->
-  m ()
+  IO ()
 responder f c conn = go
   where
     go = do
-      msg <- liftIO $ WS.receive conn
+      msg <-  WS.receive conn
       case msg of
         WS.ControlMessage (WS.Close _ _) -> do
           _ <- commit c "responder: normal close"
-          liftIO $ WS.sendClose conn ("received close signal: responder closed." :: Text)
+          WS.sendClose conn ("received close signal: responder closed." :: Text)
         WS.ControlMessage _ -> go
         WS.DataMessage _ _ _ msg' -> do
           case f $ WS.fromDataMessage msg' of
             Left _ -> do
               _ <- commit c "responder: sender initiated close"
-              liftIO $ WS.sendClose conn ("received close signal: responder closed." :: Text)
+              WS.sendClose conn ("received close signal: responder closed." :: Text)
             Right r -> do
               _ <- commit c ("responder: sending" <> r)
-              liftIO $ WS.sendTextData conn r
+              WS.sendTextData conn r
               go
