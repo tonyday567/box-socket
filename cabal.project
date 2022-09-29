@@ -1,4 +1,3 @@
 packages:
   box-socket.cabal
 
-allow-newer: attoparsec
