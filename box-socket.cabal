@@ -52,4 +52,4 @@ executable box-socket
   default-language: Haskell2010
   ghc-options:
     -funbox-strict-fields -fforce-recomp -threaded -rtsopts
-    -with-rtsopts=-N -fwrite-ide-info -hiedir=.hie
+    -with-rtsopts=-N
