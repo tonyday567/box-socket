@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name:          box-socket
-version:       0.4.0
+version:       0.4.1
 synopsis:      Box websockets
 description:   Websockets built with the box library.
 category:      project
@@ -11,7 +11,8 @@ license:       BSD-3-Clause
 homepage:      https://github.com/tonyday567/box-socket#readme
 bug-reports:   https://github.com/tonyday567/box-socket/issues
 build-type:    Simple
-tested-with:   GHC ==8.8.4 || ==8.10.7 || ==9.2.4 || ==9.4.2
+tested-with:
+  GHC ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.2.5 || ==9.4.4
 
 source-repository head
   type:     git
