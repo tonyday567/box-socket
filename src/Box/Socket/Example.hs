@@ -50,17 +50,17 @@ tClient xs = do
   runClient
     defaultSocketConfig
     ( \conn ->
-        (\b -> clientApp b conn)
-          <$|> ( Box c
-                   <$> qList (xs <> ["q"])
-               )
+        (\b -> clientApp b conn) <$|>
+          ( Box c
+              <$> qList (xs <> ["q"])
+          )
     )
   r
 
 tClientIO :: [Text] -> IO ()
 tClientIO xs =
-  (runClient defaultSocketConfig . clientApp)
-    <$|> (Box (contramap (pack . show) toStdout) <$> qList (xs <> ["q"]))
+  (runClient defaultSocketConfig . clientApp) <$|>
+    (Box (contramap (pack . show) toStdout) <$> qList (xs <> ["q"]))
 
 -- | main test run of client-server functionality
 -- the code starts a server in a thread, starts the client in the main thread, and cancels the server on completion.

@@ -156,4 +156,5 @@ testResponder = testHarness (tcpResponder defaultTCPConfig (pure . ("echo: " <>)
 testServerSender :: IO ()
 testServerSender =
   testHarness $
-    tcpSender defaultTCPConfig <$|> qList ["hi!"]
+    tcpSender defaultTCPConfig <$|>
+      qList ["hi!"]
