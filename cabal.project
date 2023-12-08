@@ -1,3 +1,8 @@
 packages:
   box-socket.cabal
 
+allow-newer:
+  websockets:text,
+  websockets:attoparsec,
+  optparse-generic:text,
+  optparse-generic:bytestring,

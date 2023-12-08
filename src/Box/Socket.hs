@@ -24,10 +24,10 @@ import Box
 import Control.Concurrent.Async
 import Control.Monad
 import Control.Monad.Catch
-import qualified Data.ByteString as BS
+import Data.ByteString qualified as BS
 import Data.Text (Text, pack, unpack)
 import GHC.Generics
-import qualified Network.WebSockets as WS
+import Network.WebSockets qualified as WS
 
 -- | Socket configuration
 --
