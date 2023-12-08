@@ -1,10 +1,8 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wall #-}
 
 {-
@@ -16,27 +14,37 @@ It's a box. It's a socket. It's an app.
 module Main where
 
 import Box.Socket.Example
-import Options.Generic
+import Options.Applicative
 
-data SocketType = Client | Responder | TestRun deriving (Eq, Read, Show, Generic)
+boxSocketOpts :: ParserInfo Opts
+boxSocketOpts =
+  info
+    (boxSocketOptions <**> helper)
+    (fullDesc <> progDesc "box-socket tests" <> header "examples of box socket usage")
 
-instance ParseField SocketType
+data SocketType = Client | Responder | TestRun deriving (Eq, Read, Show)
 
-instance ParseRecord SocketType
-
-instance ParseFields SocketType
-
-newtype Opts w = Opts
-  { apptype :: w ::: SocketType <?> "type of websocket app"
+newtype Opts = Opts
+  { socketType :: SocketType
   }
-  deriving (Generic)
+  deriving (Eq, Show)
 
-instance ParseRecord (Opts Wrapped)
+boxSocketOptions :: Parser Opts
+boxSocketOptions =
+  Opts
+    <$> parseSocketType
+
+parseSocketType :: Parser SocketType
+parseSocketType =
+  flag' Client (long "client" <> help "client socket")
+    <|> flag' Responder (long "responder" <> help "responder socket")
+    <|> flag' TestRun (long "test" <> help "run the test socket")
+    <|> pure TestRun
 
 main :: IO ()
 main = do
-  o :: Opts Unwrapped <- unwrapRecord "example websocket apps"
-  r :: String <- case apptype o of
+  o <- execParser boxSocketOpts
+  r <- case socketType o of
     Client -> show <$> clientIO
     Responder -> show <$> q' serverIO
     TestRun -> show <$> testRun
