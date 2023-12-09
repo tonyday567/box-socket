@@ -23,16 +23,34 @@ module Box.TCP
   )
 where
 
-import Box hiding (close)
+import Box
+    ( Emitter(..),
+      (<$|>),
+      Committer(Committer),
+      Box(Box),
+      glue,
+      fuse,
+      qList,
+      fromStdin,
+      toStdout )
 import Control.Concurrent.Async
-import Control.Monad
+    ( Async, cancel, concurrently, race )
+import Control.Monad ( void )
 import Data.ByteString (ByteString)
-import Data.Functor
-import Data.Functor.Contravariant
+import Data.Functor ( ($>) )
+import Data.Functor.Contravariant ( Contravariant(contramap) )
 import Data.Text (Text, unpack)
-import Data.Text.Encoding
-import GHC.Generics
+import Data.Text.Encoding ( encodeUtf8, decodeUtf8 )
+import GHC.Generics ( Generic )
 import Network.Simple.TCP
+    ( SockAddr,
+      Socket,
+      serve,
+      closeSock,
+      connectSock,
+      recv,
+      send,
+      HostPreference(HostAny) )
 
 -- | TCP configuration
 --
