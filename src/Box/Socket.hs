@@ -21,12 +21,18 @@ module Box.Socket
 where
 
 import Box
-import Control.Concurrent.Async
-import Control.Monad
-import Control.Monad.Catch
+    ( Emitter(emit),
+      process,
+      Codensity(Codensity),
+      Committer(commit),
+      Box(Box),
+      sleep )
+import Control.Concurrent.Async ( race, withAsync )
+import Control.Monad ( void, forever )
+import Control.Monad.Catch ( bracket )
 import Data.ByteString qualified as BS
 import Data.Text (Text, pack, unpack)
-import GHC.Generics
+import GHC.Generics ( Generic )
 import Network.WebSockets qualified as WS
 
 -- | Socket configuration
