@@ -119,5 +119,7 @@ executable box-socket
     hs-source-dirs: app
     build-depends:
         , base             >=4.7 && <5
+        , box
+        , text
         , box-socket
         , optparse-applicative >=0.17 && <0.19

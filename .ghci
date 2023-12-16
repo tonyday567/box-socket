@@ -1,0 +1,3 @@
+:set -XOverloadedStrings
+:set -XOverloadedLabels
+:set -Wno-type-defaults
