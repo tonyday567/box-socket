@@ -22,7 +22,7 @@ boxSocketOpts =
     (boxSocketOptions <**> helper)
     (fullDesc <> progDesc "box-socket tests" <> header "examples of box socket usage")
 
-data SocketType = Client | Responder | TestRun deriving (Eq, Read, Show)
+data SocketType = ClientIO | ServerIO | ResponderExample | SenderExample deriving (Eq, Read, Show)
 
 newtype Opts = Opts
   { socketType :: SocketType
@@ -36,16 +36,21 @@ boxSocketOptions =
 
 parseSocketType :: Parser SocketType
 parseSocketType =
-  flag' Client (long "client" <> help "client socket")
-    <|> flag' Responder (long "responder" <> help "responder socket")
-    <|> flag' TestRun (long "test" <> help "run the test socket")
-    <|> pure TestRun
+  flag' ClientIO (long "clientio" <> help "client socket")
+    <|> flag' ServerIO (long "serverio" <> help "server socket")
+    <|> flag' ResponderExample (long "responder" <> help "responder example")
+    <|> flag' SenderExample (long "sender" <> help "sender example")
+    <|> pure ResponderExample
 
 main :: IO ()
 main = do
   o <- execParser boxSocketOpts
   r <- case socketType o of
-    Client -> show <$> clientIO
-    Responder -> show <$> q' serverIO
-    TestRun -> show <$> testRun
+    -- FIXME: neither of these close after a "q"
+    ClientIO -> show <$> clientIO
+    ServerIO -> show <$> serverIO
+    -- sender ok
+    SenderExample -> show <$> senderExample ["hi", "bye"]
+    -- FIXME: hangs
+    ResponderExample -> show <$> responderExample ["hi","bye"]
   putStrLn r
