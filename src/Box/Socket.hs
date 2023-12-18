@@ -7,27 +7,23 @@
 module Box.Socket
   ( SocketConfig (..),
     defaultSocketConfig,
-    clientApp,
-    serverApp,
+    PostSend (..),
+    SocketStatus (..),
     connect,
     serve,
+    pending,
     receiver,
     receiver_,
     sender,
     sender_,
-    senderClose,
-    responderF,
-    responderF_,
     duplex,
     duplex_,
-    duplex'_,
-    duplex',
-    duplexClose,
     simplex,
-    duplexServer,
-    duplexServer_,
-    duplexClient,
-    duplexClient_,
+    clientBox,
+    clientCoBox,
+    serverBox,
+    serverCoBox,
+    responseServer,
   )
 where
 
@@ -35,12 +31,10 @@ import Box
 import Control.Concurrent.Async
 import Control.Monad
 import Data.ByteString qualified as BS
-import Data.Text (Text, unpack)
+import Data.Text (Text, pack, unpack)
 import GHC.Generics ( Generic )
 import Network.WebSockets
-import Data.Functor.Contravariant
 import Control.Exception
-import Data.Bifunctor
 
 -- | Socket configuration
 --
@@ -57,19 +51,21 @@ data SocketConfig = SocketConfig
 defaultSocketConfig :: SocketConfig
 defaultSocketConfig = SocketConfig "127.0.0.1" 9160 "/"
 
--- | Run a client app.
-clientApp :: SocketConfig -> ClientApp a -> IO a
-clientApp c app = runClient (unpack $ host c) (port c) (unpack $ path c) app
+-- | connect an action (ie a client)
+connect :: SocketConfig -> Codensity IO Connection
+connect c = Codensity $ \action ->
+  runClient (unpack $ host c) (port c) (unpack $ path c) action
 
--- | Run a server app.
-serverApp :: SocketConfig -> ServerApp -> IO ()
-serverApp c app = runServer (unpack $ host c) (port c) app
+-- | serve an action (ie a server)
+serve :: SocketConfig -> Codensity IO Connection
+serve c = Codensity $
+  runServerWithOptions (defaultServerOptions { serverHost = (unpack $ host c), serverPort = port c}) . upgrade
+  where
+    upgrade action p = void $ action <$|> pending p
 
--- clientApp defaultSocketConfig (\conn -> sendClose conn ("test"::Text))
-
--- | Connection continuation.
-connect :: PendingConnection -> Codensity IO Connection
-connect p = Codensity $ \action ->
+-- | Given a PendingConnection, provide a Connection continuation.
+pending:: PendingConnection -> Codensity IO Connection
+pending p = Codensity $ \action ->
   bracket
     (acceptRequest p)
     -- FIXME: is this just-in-case ok?
@@ -80,7 +76,7 @@ connect p = Codensity $ \action ->
           (\_ -> action conn)
     )
 
--- | Commit received messages, and action control messages
+-- | Commit received messages, finalising on receiving a CloseRequest
 receiver ::
   (WebSocketsData a) =>
   Committer IO a ->
@@ -95,242 +91,154 @@ receiver c conn = go
         Left err -> throwIO err
         Right msg' -> commit c msg' >> go
 
--- | Commit received messages, and action control messages
+-- | Commit received messages, finalising on receiving a CloseRequest
 receiver_ ::
   (WebSocketsData a, Show a) =>
   Committer IO a ->
-  Committer IO ConnectionException ->
+  Committer IO Text ->
   Connection ->
-  IO Bool
-receiver_ c cErrs conn = go
+  IO ()
+receiver_ c cLog conn = go
   where
     go = do
       msg <- try (receiveData conn)
+      _ <- commit cLog ("receiver_:" <> pack (show msg))
       case msg of
-        Left cr@(CloseRequest _ _) -> commit cErrs cr >> putStrLn "receiver_ CR" >> pure True
-        Left err -> commit cErrs err >> pure False
-        Right msg' -> commit c msg' >> putStrLn (show msg') >> go
+        Left (CloseRequest _ _) -> pure ()
+        Left err -> throwIO err
+        Right msg' -> commit c msg' >> go
 
--- | Send emitted messages
+-- | Whether a socket remains open or closed after an action finishes.
+data SocketStatus = SocketOpen | SocketClosed | SocketBroken deriving (Generic, Eq, Show)
+
+-- | Send emitted messages, returning whether the socket remained open (the emitter ran out of emits) or closed (a CloseRequest was received).
 sender ::
   (WebSocketsData a) =>
   Emitter IO a ->
   Connection ->
-  IO Bool
+  IO SocketStatus
 sender e conn = go
   where
     go = do
       msg <- emit e
       case msg of
-        Nothing -> pure False
+        Nothing -> pure SocketOpen
         Just msg' -> do
           ok <- try (sendTextData conn msg')
           case ok of
-            Left (CloseRequest _ _) -> pure True
+            Left (CloseRequest _ _) -> pure SocketClosed
             Left err -> throwIO err
             Right () -> go
 
--- | Send emitted messages and then close
-senderClose ::
-  (WebSocketsData a) =>
-  Emitter IO a ->
-  Connection ->
-  IO Bool
-senderClose e conn = go
-  where
-    go = do
-      msg <- emit e
-      case msg of
-        Nothing -> sendClose conn ("senderClose"::Text) >> pure False
-        Just msg' -> do
-          ok <- try (sendTextData conn msg')
-          case ok of
-            Left (CloseRequest _ _) -> pure True
-            Left err -> throwIO err
-            Right () -> go
-
-data ClosureStatus = Closed | UnClosed | Broken deriving (Generic, Eq, Show)
-
--- | Send emitted messages
+-- | Send emitted messages, returning whether the socket remained open (the emitter ran out of emits) or closed (a CloseRequest was received).
 sender_ ::
   (WebSocketsData a, Show a) =>
   Emitter IO a ->
-  Committer IO ConnectionException ->
+  Committer IO Text ->
   Connection ->
-  IO ClosureStatus
-sender_ e cExceptions conn = go
+  IO SocketStatus
+sender_ e cLog conn = go
   where
     go = do
       msg <- emit e
+      _ <- commit cLog ("emit sender_:" <> pack (show msg))
       case msg of
-        Nothing -> putStrLn "sender expired" >> pure UnClosed
+        Nothing -> pure SocketOpen
         Just msg' -> do
-          putStrLn (show msg')
           ok <- try (sendTextData conn msg')
+          _ <- commit cLog ("send sender_:" <> pack (show ok))
           case ok of
-            Left cr@(CloseRequest _ _) -> commit cExceptions cr >> putStrLn "sender_ CR" >> pure Closed
-            Left err -> commit cExceptions err >> pure Broken
+            Left (CloseRequest _ _) -> pure SocketClosed
+            Left err -> throwIO err
             Right () -> go
 
--- | A two-way connection. Closes if receiver or sender sides close.
-duplex ::
-  (WebSocketsData a) =>
-  Box IO a a ->
-  Connection ->
-  IO ()
-duplex (Box c e) conn =
-  void $
-    concurrently
-      (receiver c conn)
-      (sender e conn)
+data PostSend = StayOpen | CloseAfter Double deriving (Generic, Eq, Show)
 
--- | A two-way connection. Closes if receiver receives the CloseRequest exception.
-duplexClose ::
-  (Show a, WebSocketsData a) =>
+-- | A two-way connection. Closes if it receives a CloseRequest exception, or if PostSend is CloseAfter.
+duplex::
+  (WebSocketsData a) =>
+  PostSend ->
   Box IO a a ->
   Connection ->
   IO ()
-duplexClose (Box c e) conn = do
-  b <- concurrentlyRight
+duplex ps (Box c e) conn = do
+  concurrentlyRight
     (do
-        status <- sender_ e showStdout conn
-        when (status == UnClosed) (sendClose conn ("unclosed sender" :: Text)))
-    (receiver_ c showStdout conn)
-  putStrLn $ show b
-  putStrLn "duplexClose finished"
+        status <- sender e conn
+        case (ps, status) of
+          (CloseAfter s, SocketOpen) -> do
+            sleep s
+            (sendClose conn ("close after sending" :: Text))
+          _ -> pure ())
+    (receiver c conn)
 
--- | A two-way connection. Closes if receiver or sender sides close.
-duplex' ::
-  (WebSocketsData a) =>
+-- | A two-way connection. Closes if it receives a CloseRequest exception, or if PostSend is CloseAfter.
+duplex_ ::
+  (WebSocketsData a, Show a) =>
+  PostSend ->
+  Committer IO Text ->
   Box IO a a ->
   Connection ->
   IO ()
-duplex' (Box c e) conn = do
-  ((), closed) <-
-    concurrently
-      (receiver c conn)
-      (sender e conn)
-  when (not closed) $ sendClose conn ("duplex'" :: Text)
-  -- FIXME: also wait for return close
+duplex_ ps cLog (Box c e) conn = do
+  concurrentlyRight
+    (do
+        status <- sender_ e cLog conn
+        _ <- commit cLog ("duplex_:sender_ closed with" <> pack (show status))
+        case (ps, status) of
+          (CloseAfter s, SocketOpen) -> do
+            sleep s
+            (sendClose conn ("close after sending" :: Text))
+          _ -> pure ())
+    (do
+       receiver_ c cLog conn
+       void $ commit cLog ("duplex_:receiver_ closed")
+       )
+  void $ commit cLog ("duplex_ closed")
 
--- | A two-way connection. Closes if receiver or sender sides close.
-duplex'_ ::
-  (Show a, WebSocketsData a) =>
-  Box IO a a ->
-  Committer IO (String, ConnectionException) ->
-  Connection ->
-  IO ()
-duplex'_ (Box c e) cExceptions conn = do
-  (recclose, sendclose) <-
-    concurrently
-      (receiver_ c (contramap ("receiver duplex'_:",) cExceptions) conn)
-      (sender_ e (contramap ("sender duplex'_:",) cExceptions) conn)
-  when (not (UnClosed == sendclose || recclose)) $ sendClose conn ("duplex'" :: Text)
-  -- FIXME: also wait for return close
-  pure ()
-
--- | A one-way sender
+-- | A one-way sender. Underneath, it still needs to listen and receive a CloseRequest.
 simplex ::
-  (Show a, WebSocketsData a) =>
+  (WebSocketsData a) =>
   Emitter IO a ->
   Connection ->
   IO ()
 simplex e conn = do
-  duplexClose (Box mempty e) conn
+  duplex (CloseAfter 0.2) (Box mempty e) conn
 
--- | A two-way connection. Closes when both receiver and sender sides close.
-duplex_ ::
-  (WebSocketsData a , Show a) =>
-  Box IO a a ->
-  Committer IO (String, ConnectionException) ->
-  Connection ->
-  IO ()
-duplex_ (Box c e) cErrs conn = do
-  _ <- concurrently (receiver_ c (contramap ("receiver duplex:",) cErrs) conn) (sender_ e (contramap ("sender duplex:",) cErrs) conn)
-  pure ()
-
-duplexClient ::
-  (WebSocketsData a, Show a) =>
-  SocketConfig ->
-  Box IO a a ->
-  IO ()
-duplexClient cfg b = clientApp cfg (duplexClose b)
-
-duplexClient_ ::
-  (WebSocketsData a, Show a) =>
-  SocketConfig ->
-  Box IO a a ->
-  Committer IO (String, ConnectionException) ->
-  IO ()
-duplexClient_ cfg b cErr = clientApp cfg (duplex_ b (contramap (first (<> "duplexClient_:")) cErr))
-
--- | Serve a connection action
-serve ::
-  ClientApp a -> ServerApp
-serve action p =
-  void $
-    process
-      action (connect p)
-
-duplexServer ::
-  (WebSocketsData a, Show a) =>
-  SocketConfig ->
-  Box IO a a ->
-  IO ()
-duplexServer cfg b = serverApp cfg (serve (duplexClose b))
-
-duplexServer_ ::
-  (WebSocketsData a, Show a) =>
-  SocketConfig ->
-  Box IO a a ->
-  Committer IO (String, ConnectionException) ->
-  IO ()
-duplexServer_ cfg b cErr = serverApp cfg (serve (duplex_ b (contramap (first (<> "duplexServer_:")) cErr)))
-
--- | A receiver that responds based on received Text.
--- lefts are quit signals. Rights are response text.
-responderF ::
+-- | A Box action for a socket client.
+clientBox ::
   (WebSocketsData a) =>
-  (a -> Either Text Text) ->
-  Connection ->
+  SocketConfig ->
+  PostSend ->
+  Box IO a a ->
   IO ()
-responderF f conn =  go
-  where
-    go = do
-      response <- try (receiveData conn)
-      case response of
-        Left (CloseRequest _ _) -> pure ()
-        Left err -> throwIO err
-        Right msg -> case f msg of
-          Left reason ->
-            sendClose conn reason >> go
-          (Right msg') -> do
-            confirm <- try (sendTextData conn msg')
-            case confirm of
-              Left (CloseRequest _ _) -> pure ()
-              Left err -> throwIO err
-              Right () -> go
+clientBox cfg ps b = duplex ps b <$|> connect cfg
 
--- | A receiver that responds based on received Text.
-responderF_ ::
+-- | A socket client CoBox.
+clientCoBox ::
   (WebSocketsData a) =>
-  (a -> Either Text Text) ->
-  Committer IO (String, ConnectionException) ->
-  ClientApp Bool
-responderF_ f cExceptions conn = go
-  where
-    go = do
-      response <- try (receiveData conn)
-      case response of
-        Left cr@(CloseRequest _ _) -> commit cExceptions ("responseF|receive",cr) >> pure True
-        Left err -> commit cExceptions ("responseF|receive",err) >> pure False
-        Right msg -> case f msg of
-          Left reason ->
-            sendClose conn reason >> go
-          (Right msg') -> do
-            confirm <- try (sendTextData conn msg')
-            case confirm of
-              Left cr@(CloseRequest _ _) -> commit cExceptions ("responseF|send",cr) >> pure True
-              Left err -> commit cExceptions ("responseF|send",err) >> pure False
-              Right () -> go
+  SocketConfig ->
+  PostSend ->
+  CoBox IO a a
+clientCoBox cfg ps = fromAction (clientBox cfg ps)
 
+-- | A Box action for a socket server.
+serverBox ::
+  (WebSocketsData a) =>
+  SocketConfig ->
+  PostSend ->
+  Box IO a a ->
+  IO ()
+serverBox cfg ps b = duplex ps b <$|> serve cfg
+
+-- | A CoBox socket server.
+serverCoBox ::
+  (WebSocketsData a) =>
+  SocketConfig ->
+  PostSend ->
+  CoBox IO a a
+serverCoBox cfg ps = fromAction (serverBox cfg ps)
+
+-- | A receiver that applies a response function to received Text.
+responseServer :: (WebSocketsData a) => SocketConfig -> (a -> Maybe a) -> IO ()
+responseServer cfg f = fuse (pure . f) <$|> serverCoBox cfg (CloseAfter 0.5)
