@@ -14,15 +14,16 @@ It's a box. It's a socket. It's an example.
 module Box.Socket.Example where
 
 import Box
+import Box.Types
 import Box.Socket
 import Control.Concurrent.Async
 import Data.Text (Text)
+import Data.Functor.Contravariant
 
 -- $setup
 -- >>> :set -XOverloadedStrings
 -- >>> import Box
 -- >>> import Box.Socket.Example
--- >>> import Data.ByteString.Lazy qualified as BS
 -- >>> import Control.Concurrent.Async
 
 -- | A server that only sends and a client that only receives.
@@ -49,12 +50,30 @@ echoExample ts = do
   a <- async
     (responseServer defaultSocketConfig (pure . (("echo: " :: Text) <>)))
   sleep 0.1
-  clientBox defaultSocketConfig (CloseAfter 0.5) . Box c <$|> qList ts
+  clientBox defaultSocketConfig (CloseAfter 0.2) . Box c <$|> qList ts
   sleep 0.1
   cancel a
   r
 
--- | Box that emits from and commits to std
+-- | echo server example, with event logging.
+--
+-- The order of events is non-deterministic, so this is a rough guide:
+--
+-- > echoLogExample ["a","b","c"]
+-- (["echo: a","echo: b","echo: c"],["client:sender_:emit:Just \"a\"","client:sender_:sendTextData:Right ()","client:sender_:emit:Just \"b\"","client:sender_:sendTextData:Right ()","client:sender_:emit:Just \"c\"","client:sender_:sendTextData:Right ()","client:sender_:emit:Nothing","client:sender_ closed with SocketOpen","server:receiver_:receiveData:Right \"a\"","server:receiver_:receiveData:Right \"b\"","server:receiver_:receiveData:Right \"c\"","server:sender_:emit:Just \"echo: a\"","server:sender_:sendTextData:Right ()","server:sender_:emit:Just \"echo: b\"","server:sender_:sendTextData:Right ()","server:sender_:emit:Just \"echo: c\"","server:sender_:sendTextData:Right ()","client:receiver_:receiveData:Right \"echo: a\"","client:receiver_:receiveData:Right \"echo: b\"","client:receiver_:receiveData:Right \"echo: c\"","server:receiver_:receiveData:Left (CloseRequest 1000 \"close after sending\")","server:receiver_ closed","client:receiver_:receiveData:Left (CloseRequest 1000 \"close after sending\")","client:receiver_ closed","client:duplex_ closed","server:duplex_ closed"])
+echoLogExample :: [Text] -> IO ([Text], [Text])
+echoLogExample ts = do
+  (c, r) <- refCommitter
+  (cLog, resLog) <- refCommitter
+  a <- async
+    (fuse (pure . pure . (("echo: "::Text) <>)) <$|> (fromAction (\b -> duplex_ (CloseAfter 0.5) (contramap ("server:"<>) cLog) b <$|> serve defaultSocketConfig)))
+  sleep 0.1
+  duplex_ (CloseAfter 0.2) (contramap ("client:"<>) cLog) . Box c <$> qList ts <*|> connect defaultSocketConfig
+  sleep 0.1
+  cancel a
+  (,) <$> r <*> resLog
+
+-- | 'Box' that emits from and commits to std, "q" to quit.
 ioBox :: Box IO Text Text
 ioBox = Box toStdout (takeUntilE (=="q") fromStdin)
 
