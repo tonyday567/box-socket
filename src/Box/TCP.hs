@@ -1,178 +1,142 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StrictData #-}
-{-# OPTIONS_GHC -Wall #-}
 
 -- | TCP Boxes.
 module Box.TCP
   ( TCPConfig (..),
     defaultTCPConfig,
-    Env (..),
-    new,
-    close,
-    tcpEmitter,
-    tcpCommitter,
-    tcpBox,
-    tcpServer,
-    tcpResponder,
-    tcpSender,
-    tcpStdClient,
-    testHarness,
-    testResponder,
-    testServerSender,
+    TCPEnv (..),
+    Socket,
+    connect,
+    serve,
+    receiver,
+    sender,
+    duplex,
+    clientBox,
+    clientCoBox,
+    serverBox,
+    serverCoBox,
+    responseServer,
   )
 where
 
 import Box
-    ( Emitter(..),
-      (<$|>),
-      Committer(Committer),
-      Box(Box),
-      glue,
-      fuse,
-      qList,
-      fromStdin,
-      toStdout )
-import Control.Concurrent.Async
-    ( Async, cancel, concurrently, race )
-import Control.Monad ( void )
+import Control.Monad
 import Data.ByteString (ByteString)
-import Data.Functor ( ($>) )
-import Data.Functor.Contravariant ( Contravariant(contramap) )
 import Data.Text (Text, unpack)
-import Data.Text.Encoding ( encodeUtf8, decodeUtf8 )
 import GHC.Generics ( Generic )
-import Network.Simple.TCP
-    ( SockAddr,
-      Socket,
-      serve,
-      closeSock,
-      connectSock,
-      recv,
-      send,
-      HostPreference(HostAny) )
+import Network.Simple.TCP qualified as NS
+import Network.Simple.TCP (Socket)
+import Box.Types
+import Control.Concurrent.Async
 
 -- | TCP configuration
 --
 -- >>> defaultTCPConfig
--- TCPConfig {host = "127.0.0.1", port = "3566"}
+-- TCPConfig {hostPreference = HostAny, host = "127.0.0.1", port = "3566", chunk = 2048}
 data TCPConfig = TCPConfig
-  { host :: Text,
-    port :: Text
+  { hostPreference :: NS.HostPreference,
+    host :: Text,
+    port :: Text,
+    chunk :: Int
   }
   deriving (Show, Eq, Generic)
 
 -- | default
 defaultTCPConfig :: TCPConfig
-defaultTCPConfig = TCPConfig "127.0.0.1" "3566"
+defaultTCPConfig = TCPConfig NS.HostAny "127.0.0.1" "3566" 2048
 
 -- | An active TCP environment
-data Env = Env
-  { socket :: Socket,
-    sockaddr :: SockAddr,
-    -- | A screen dump thread
-    ascreendump :: Maybe (Async ()),
-    -- | A file dump thread
-    afiledump :: Maybe (Async ())
+data TCPEnv = TCPEnv
+  { socket :: NS.Socket,
+    sockaddr :: NS.SockAddr
   }
 
--- | Connects to a server with no screen or file dump.
-new ::
-  -- | Configuration
+connect :: TCPConfig -> Codensity IO TCPEnv
+connect cfg =
+  Codensity $
+  NS.connect (unpack $ host cfg) (unpack $ port cfg) .
+  (\action (s,a) -> action (TCPEnv s a))
+
+serve :: TCPConfig -> Codensity IO TCPEnv
+serve cfg =
+  Codensity $
+  NS.serve (hostPreference cfg) (unpack $ port cfg) .
+  (\action (s,a) -> void $ action (TCPEnv s a))
+
+-- | Commit received messages.
+receiver ::
   TCPConfig ->
-  IO Env
-new cfg = do
-  (sock, sa) <- connectSock (unpack $ host cfg) (unpack $ port cfg)
-  pure (Env sock sa Nothing Nothing)
-
--- | close an Env
-close :: Env -> IO ()
-close env = do
-  closeSock (socket env)
-  maybe (pure ()) cancel (ascreendump env)
-  maybe (pure ()) cancel (afiledump env)
-
--- | Emits from a 'Socket'
-tcpEmitter :: Socket -> Emitter IO ByteString
-tcpEmitter s = Emitter $ recv s 2048
-
--- | Commits to a 'Socket'
-tcpCommitter :: Socket -> Committer IO ByteString
-tcpCommitter s = Committer $ \bs -> send s bs $> True
-
--- | 'Box' connection for a 'Socket'
-tcpBox :: Socket -> Box IO ByteString ByteString
-tcpBox s = Box (tcpCommitter s) (tcpEmitter s)
-
--- | TCP server 'Box'
-tcpServer :: TCPConfig -> Box IO ByteString ByteString -> IO ()
-tcpServer cfg (Box c e) =
-  serve
-    HostAny
-    (unpack $ port cfg)
-    ( \(s, _) ->
-        void $
-          race
-            (glue (tcpCommitter s) e)
-            (glue c (tcpEmitter s))
-    )
-
--- | Response function.
-responder :: (ByteString -> IO ByteString) -> Box IO ByteString ByteString -> IO ()
-responder f = fuse (fmap Just . f)
-
--- | A server that explicitly responds to client messages.
-tcpResponder :: TCPConfig -> (ByteString -> IO ByteString) -> IO ()
-tcpResponder cfg f =
-  serve
-    HostAny
-    (unpack $ port cfg)
-    (\(s, _) -> responder f (Box (tcpCommitter s) (tcpEmitter s)))
-
--- | A server independent of incoming messages.
-tcpSender :: TCPConfig -> Emitter IO ByteString -> IO ()
-tcpSender cfg e =
-  serve
-    HostAny
-    (unpack $ port cfg)
-    (\(s, _) -> glue (tcpCommitter s) e)
-
--- | A TCP client connected to stdin
-tcpStdClient :: TCPConfig -> IO ()
-tcpStdClient cfg = do
-  (Env s _ _ _) <- new cfg
-  void $
-    concurrently
-      (glue o (tcpEmitter s))
-      (glue (tcpCommitter s) i)
+  Committer IO ByteString ->
+  Socket ->
+  IO ()
+receiver cfg c conn = go
   where
-    o = contramap decodeUtf8 toStdout
-    i = fmap encodeUtf8 fromStdin
+    go = do
+      msg <- NS.recv conn (chunk cfg)
+      case msg of
+        Nothing -> pure ()
+        Just bs -> commit c bs >> go
 
--- | test harness wrapping an action with a "q" escape.
-testHarness :: IO () -> IO ()
-testHarness io =
-  void $
-    race
-      io
-      (cancelQ fromStdin)
+-- | Send emitted messages, returning whether the socket remained open (the 'Emitter' ran out of emits) or closed (a 'CloseRequest' was received).
+sender ::
+  Emitter IO ByteString ->
+  Socket ->
+  IO SocketStatus
+sender e conn = go
+  where
+    go = do
+      bs <- emit e
+      case bs of
+        Nothing -> pure SocketOpen
+        Just bs' -> NS.send conn bs' >> go
 
--- | Cancel with a "q".
-cancelQ :: Emitter IO Text -> IO ()
-cancelQ e = do
-  e' <- emit e
-  case e' of
-    Just "q" -> pure ()
-    Just x -> putStrLn ("badly handled: " <> unpack x)
-    Nothing -> pure ()
+-- | A two-way connection. Closes if it receives a 'CloseRequest' exception, or if 'PostSend' is 'CloseAfter'.
+duplex::
+  TCPConfig ->
+  PostSend ->
+  Box IO ByteString ByteString ->
+  Socket ->
+  IO ()
+duplex cfg ps (Box c e) conn = do
+  _ <- race
+    (do
+       status <- sender e conn
+       case (ps, status) of
+          (CloseAfter s, SocketOpen) -> sleep s
+          _ -> pure ())
+    (receiver cfg c conn)
+  pure ()
 
--- | @"echo: " <>@ Responder
-testResponder :: IO ()
-testResponder = testHarness (tcpResponder defaultTCPConfig (pure . ("echo: " <>)))
+-- | A 'Box' action for a socket client.
+clientBox ::
+  TCPConfig ->
+  PostSend ->
+  Box IO ByteString ByteString ->
+  IO ()
+clientBox cfg ps b = duplex cfg ps b . socket <$|> connect cfg
 
--- | Test server.
-testServerSender :: IO ()
-testServerSender =
-  testHarness $
-    tcpSender defaultTCPConfig <$|>
-      qList ["hi!"]
+-- | A 'CoBox' socket server.
+clientCoBox ::
+  TCPConfig ->
+  PostSend ->
+  CoBox IO ByteString ByteString
+clientCoBox cfg ps = fromAction (clientBox cfg ps)
+
+-- | A 'Box' action for a socket server.
+serverBox ::
+  TCPConfig ->
+  PostSend ->
+  Box IO ByteString ByteString ->
+  IO ()
+serverBox cfg ps b = duplex cfg ps b . socket <$|> serve cfg
+
+-- | A 'CoBox' socket server.
+serverCoBox ::
+  TCPConfig ->
+  PostSend ->
+  CoBox IO ByteString ByteString
+serverCoBox cfg ps = fromAction (serverBox cfg ps)
+
+-- | A receiver that applies a response function to received Text.
+responseServer :: TCPConfig -> (ByteString -> Maybe ByteString) -> IO ()
+responseServer cfg f = fuse (pure . f) <$|> serverCoBox cfg (CloseAfter 0.5)
