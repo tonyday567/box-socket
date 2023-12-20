@@ -15,11 +15,12 @@ module Box.TCP.Example where
 
 import Box
 import Box.TCP
-import Box.Types
+import Box.Socket.Types
 import Control.Concurrent.Async
-import Data.Functor.Contravariant
 import Data.ByteString
+import Data.Text
 import Data.Text.Encoding
+import Data.Profunctor
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -29,23 +30,33 @@ import Data.Text.Encoding
 
 -- | A server that only sends and a client that only receives.
 --
--- FIXME:
---
 -- >>> senderExample ["a","b"]
--- []
+-- ["ab"]
 senderExample :: [ByteString] -> IO [ByteString]
 senderExample ts = do
   (c, r) <- refCommitter
   a <- async (serverBox defaultTCPConfig (CloseAfter 0.2) . Box mempty <$|> qList ts)
-  sleep 0.1
-  clientBox defaultTCPConfig StayOpen (Box c mempty)
-  sleep 0.1
+  sleep 0.2
+  clientBox defaultTCPConfig (CloseAfter 0.5) (Box c mempty)
+  sleep 0.6
+  cancel a
+  r
+
+-- | A server that only sends and a client that only receives.
+--
+-- >>> senderLinesExample ["a","b"]
+-- ["a","b"]
+senderLinesExample :: [Text] -> IO [Text]
+senderLinesExample ts = do
+  (c, r) <- refCommitter
+  a <- async (serverBox defaultTCPConfig (CloseAfter 0.2) . (fromLineBox "\n") . Box mempty <$|> qList ts)
+  sleep 0.2
+  clientBox defaultTCPConfig (CloseAfter 0.5) (fromLineBox "\n" $ Box c mempty)
+  sleep 0.6
   cancel a
   r
 
 -- | echo server example
---
--- FIXME:
 --
 -- >>> echoExample ["a","b","c"]
 -- ["echo: abc"]
@@ -60,17 +71,13 @@ echoExample ts = do
   cancel a
   r
 
--- | 'Box' that emits from and commits to std, "q" to quit.
-ioBox :: Box IO ByteString ByteString
-ioBox = Box (contramap decodeUtf8Lenient toStdout) (fmap encodeUtf8 (takeUntilE (=="q") fromStdin))
-
 -- | "q" to close the client, reads and writes from std
 --
 -- >>> clientIO
 -- *** Exception: Network.Socket.connect: <socket: ...>: does not exist (Connection refused)
 clientIO :: IO ()
 clientIO =
-  clientBox defaultTCPConfig (CloseAfter 0) ioBox
+  clientBox defaultTCPConfig (CloseAfter 0) (dimap decodeUtf8Lenient encodeUtf8 (stdBox "q"))
 
 -- | "q" to close a client socket down. Ctrl-c to close the server. Reads and writes from std.
 --
@@ -81,4 +88,4 @@ clientIO =
 -- >>> cancel a
 --
 serverIO :: IO ()
-serverIO = serverBox defaultTCPConfig (CloseAfter 0) ioBox
+serverIO = serverBox defaultTCPConfig (CloseAfter 0) (dimap decodeUtf8Lenient encodeUtf8 (stdBox "q"))

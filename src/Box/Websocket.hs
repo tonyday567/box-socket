@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | Websocket components built with 'Box'es.
-module Box.Socket
+module Box.Websocket
   ( SocketConfig (..),
     defaultSocketConfig,
     connect,
@@ -31,7 +31,7 @@ import GHC.Generics ( Generic )
 import Network.WebSockets
 import Control.Exception
 import Data.Functor.Contravariant
-import Box.Types
+import Box.Socket.Types
 
 -- | Socket configuration
 --
@@ -73,8 +73,7 @@ pending:: PendingConnection -> Codensity IO Connection
 pending p = Codensity $ \action ->
   bracket
     (acceptRequest p)
-    -- FIXME: is this just-in-case ok? needed?
-    (\conn -> sendClose conn ("connect close" :: Text))
+    (\_ -> pure ())
     ( \conn ->
         withAsync
           (forever $ sendPing conn ("connect ping" :: BS.ByteString) >> sleep 30)
