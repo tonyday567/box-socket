@@ -26,24 +26,25 @@ import Data.Text (Text, unpack)
 import GHC.Generics ( Generic )
 import Network.Simple.TCP qualified as NS
 import Network.Simple.TCP (Socket)
-import Box.Types
+import Box.Socket.Types
 import Control.Concurrent.Async
 
 -- | TCP configuration
 --
 -- >>> defaultTCPConfig
--- TCPConfig {hostPreference = HostAny, host = "127.0.0.1", port = "3566", chunk = 2048}
+-- TCPConfig {hostPreference = HostAny, host = "127.0.0.1", port = "3566", chunk = 2048, endLine = "\n"}
 data TCPConfig = TCPConfig
   { hostPreference :: NS.HostPreference,
     host :: Text,
     port :: Text,
-    chunk :: Int
+    chunk :: Int,
+    endLine :: Text
   }
   deriving (Show, Eq, Generic)
 
 -- | default
 defaultTCPConfig :: TCPConfig
-defaultTCPConfig = TCPConfig NS.HostAny "127.0.0.1" "3566" 2048
+defaultTCPConfig = TCPConfig NS.HostAny "127.0.0.1" "3566" 2048 "\n"
 
 -- | An active TCP environment
 data TCPEnv = TCPEnv

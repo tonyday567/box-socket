@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name: box-socket
-version: 0.4.2.0
+version: 0.5
 license: BSD-3-Clause
 license-file: LICENSE
 copyright: Tony Day (c) 2017
@@ -12,7 +12,8 @@ bug-reports: https://github.com/tonyday567/box-socket/issues
 synopsis: Box websockets
 description: Websockets built with the box library.
 build-type: Simple
-tested-with: GHC ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.2.8 || ==9.4.7 || ==9.6.3 || ==9.8.1
+tested-with:
+    GHC ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.2.8 || ==9.4.7 || ==9.6.3 || ==9.8.1
 
 source-repository head
     type: git
@@ -98,20 +99,19 @@ library
     hs-source-dirs: src
     build-depends:
         , async          >=2.2.3 && <2.3
-        , base           >=4.7 && <5
-        , box            >=0.9 && <0.10
+        , base           >=4.8 && <5
+        , box            >=0.9.3 && <0.10
         , bytestring     >=0.11.3 && <0.13
-        , exceptions     >=0.10 && <0.11
-        , network        >=3.1 && <3.2
         , network-simple >=0.4 && <0.5
+        , profunctors    >=5.6 && <5.7
         , text           >=1.2 && <2.2
         , websockets     >=0.12 && <0.13
     exposed-modules:
-        Box.Types
-        Box.Socket
-        Box.Socket.Example
+        Box.Socket.Types
         Box.TCP
         Box.TCP.Example
+        Box.Websocket
+        Box.Websocket.Example
 
 executable box-socket
     import: ghc-options-exe-stanza
@@ -120,8 +120,6 @@ executable box-socket
     main-is: box-socket.hs
     hs-source-dirs: app
     build-depends:
-        , base             >=4.7 && <5
-        , box
-        , text
+        , base                 >=4.7 && <5
         , box-socket
         , optparse-applicative >=0.17 && <0.19

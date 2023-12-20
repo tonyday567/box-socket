@@ -13,8 +13,8 @@ It's a box. It's a socket. It's an app.
 
 module Main where
 
-import Box.Socket.Example as Socket
 import Box.TCP.Example as TCP
+import Box.Websocket.Example as Websocket
 import Options.Applicative
 
 boxSocketOpts :: ParserInfo Opts
@@ -57,12 +57,12 @@ main :: IO ()
 main = do
   o <- execParser boxSocketOpts
   r <- case (socketType o, exampleType o) of
-    (WebSocket, ClientIO) -> show <$> Socket.clientIO
-    (WebSocket, ServerIO) -> show <$> Socket.serverIO
-    (WebSocket, SenderExample) -> show <$> Socket.senderExample ["hi", "bye"]
-    (WebSocket, EchoExample) -> show <$> Socket.echoExample ["hi","bye"]
+    (WebSocket, ClientIO) -> show <$> Websocket.clientIO
+    (WebSocket, ServerIO) -> show <$> Websocket.serverIO
+    (WebSocket, SenderExample) -> show <$> Websocket.senderExample ["hi", "bye"]
+    (WebSocket, EchoExample) -> show <$> Websocket.echoExample ["hi", "bye"]
     (TCPSocket, ClientIO) -> show <$> TCP.clientIO
     (TCPSocket, ServerIO) -> show <$> TCP.serverIO
     (TCPSocket, SenderExample) -> show <$> TCP.senderExample ["hi", "bye"]
-    (TCPSocket, EchoExample) -> show <$> TCP.echoExample ["hi","bye"]
+    (TCPSocket, EchoExample) -> show <$> TCP.echoExample ["hi", "bye"]
   putStrLn r

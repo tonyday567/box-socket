@@ -11,11 +11,11 @@ It's a box. It's a socket. It's an example.
 
 -}
 
-module Box.Socket.Example where
+module Box.Websocket.Example where
 
 import Box
-import Box.Types
-import Box.Socket
+import Box.Socket.Types
+import Box.Websocket
 import Control.Concurrent.Async
 import Data.Text (Text)
 import Data.Functor.Contravariant
@@ -23,7 +23,7 @@ import Data.Functor.Contravariant
 -- $setup
 -- >>> :set -XOverloadedStrings
 -- >>> import Box
--- >>> import Box.Socket.Example
+-- >>> import Box.Websocket.Example
 -- >>> import Control.Concurrent.Async
 
 -- | A server that only sends and a client that only receives.
@@ -73,17 +73,13 @@ echoLogExample ts = do
   cancel a
   (,) <$> r <*> resLog
 
--- | 'Box' that emits from and commits to std, "q" to quit.
-ioBox :: Box IO Text Text
-ioBox = Box toStdout (takeUntilE (=="q") fromStdin)
-
 -- | "q" to close the client, reads and writes from std
 --
 -- >>> clientIO
 -- *** Exception: Network.Socket.connect: <socket: ...>: does not exist (Connection refused)
 clientIO :: IO ()
 clientIO =
-  clientBox defaultSocketConfig (CloseAfter 0) ioBox
+  clientBox defaultSocketConfig (CloseAfter 0) (stdBox "q")
 
 -- | "q" to close a client socket down. Ctrl-c to close the server. Reads and writes from std.
 --
@@ -94,4 +90,4 @@ clientIO =
 -- >>> cancel a
 --
 serverIO :: IO ()
-serverIO = serverBox defaultSocketConfig (CloseAfter 0) ioBox
+serverIO = serverBox defaultSocketConfig (CloseAfter 0) (stdBox "q")

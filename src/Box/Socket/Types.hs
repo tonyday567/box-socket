@@ -3,7 +3,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
 -- | Abstract sockets connected to 'Box'es.
-module Box.Types
+module Box.Socket.Types
   (
     PostSend (..),
     SocketStatus (..),
