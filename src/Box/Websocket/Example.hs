@@ -17,8 +17,8 @@ import Box
 import Box.Socket.Types
 import Box.Websocket
 import Control.Concurrent.Async
-import Data.Text (Text)
 import Data.Functor.Contravariant
+import Data.Text (Text)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -47,8 +47,9 @@ senderExample ts = do
 echoExample :: [Text] -> IO [Text]
 echoExample ts = do
   (c, r) <- refCommitter
-  a <- async
-    (responseServer defaultSocketConfig (pure . (("echo: " :: Text) <>)))
+  a <-
+    async
+      (responseServer defaultSocketConfig (pure . (("echo: " :: Text) <>)))
   sleep 0.1
   clientBox defaultSocketConfig (CloseAfter 0.2) . Box c <$|> qList ts
   sleep 0.1
@@ -65,10 +66,11 @@ echoLogExample :: [Text] -> IO ([Text], [Text])
 echoLogExample ts = do
   (c, r) <- refCommitter
   (cLog, resLog) <- refCommitter
-  a <- async
-    (fuse (pure . pure . (("echo: "::Text) <>)) <$|> (fromAction (\b -> duplex_ (CloseAfter 0.5) (contramap ("server:"<>) cLog) b <$|> serve defaultSocketConfig)))
+  a <-
+    async
+      (fuse (pure . pure . (("echo: " :: Text) <>)) <$|> fromAction (\b -> duplex_ (CloseAfter 0.5) (contramap ("server:" <>) cLog) b <$|> serve defaultSocketConfig))
   sleep 0.1
-  duplex_ (CloseAfter 0.2) (contramap ("client:"<>) cLog) . Box c <$> qList ts <*|> connect defaultSocketConfig
+  duplex_ (CloseAfter 0.2) (contramap ("client:" <>) cLog) . Box c <$> qList ts <*|> connect defaultSocketConfig
   sleep 0.1
   cancel a
   (,) <$> r <*> resLog
@@ -88,6 +90,5 @@ clientIO =
 -- *** Exception: Network.Socket.bind: resource busy (Address already in use)
 --
 -- >>> cancel a
---
 serverIO :: IO ()
 serverIO = serverBox defaultSocketConfig (CloseAfter 0) (stdBox "q")
