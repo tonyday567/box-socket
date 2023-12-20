@@ -13,7 +13,10 @@ synopsis: Box websockets
 description: Websockets built with the box library.
 build-type: Simple
 tested-with:
-    GHC ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.2.8 || ==9.4.7 || ==9.6.3 || ==9.8.1
+    GHC ==8.10.7 || ==9.4.7 || ==9.6.3 || ==9.8.1
+extra-doc-files:
+    ChangeLog.md
+    readme.org
 
 source-repository head
     type: git
