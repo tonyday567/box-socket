@@ -20,14 +20,14 @@ module Box.TCP
 where
 
 import Box
+import Box.Socket.Types
+import Control.Concurrent.Async
 import Control.Monad
 import Data.ByteString (ByteString)
 import Data.Text (Text, unpack)
-import GHC.Generics ( Generic )
-import Network.Simple.TCP qualified as NS
+import GHC.Generics (Generic)
 import Network.Simple.TCP (Socket)
-import Box.Socket.Types
-import Control.Concurrent.Async
+import Network.Simple.TCP qualified as NS
 
 -- | TCP configuration
 --
@@ -55,14 +55,14 @@ data TCPEnv = TCPEnv
 connect :: TCPConfig -> Codensity IO TCPEnv
 connect cfg =
   Codensity $
-  NS.connect (unpack $ host cfg) (unpack $ port cfg) .
-  (\action (s,a) -> action (TCPEnv s a))
+    NS.connect (unpack $ host cfg) (unpack $ port cfg)
+      . (\action (s, a) -> action (TCPEnv s a))
 
 serve :: TCPConfig -> Codensity IO TCPEnv
 serve cfg =
   Codensity $
-  NS.serve (hostPreference cfg) (unpack $ port cfg) .
-  (\action (s,a) -> void $ action (TCPEnv s a))
+    NS.serve (hostPreference cfg) (unpack $ port cfg)
+      . (\action (s, a) -> void $ action (TCPEnv s a))
 
 -- | Commit received messages.
 receiver ::
@@ -92,20 +92,22 @@ sender e conn = go
         Just bs' -> NS.send conn bs' >> go
 
 -- | A two-way connection. Closes if it receives a 'CloseRequest' exception, or if 'PostSend' is 'CloseAfter'.
-duplex::
+duplex ::
   TCPConfig ->
   PostSend ->
   Box IO ByteString ByteString ->
   Socket ->
   IO ()
 duplex cfg ps (Box c e) conn = do
-  _ <- race
-    (do
-       status <- sender e conn
-       case (ps, status) of
-          (CloseAfter s, SocketOpen) -> sleep s
-          _ -> pure ())
-    (receiver cfg c conn)
+  _ <-
+    race
+      ( do
+          status <- sender e conn
+          case (ps, status) of
+            (CloseAfter s, SocketOpen) -> sleep s
+            _ -> pure ()
+      )
+      (receiver cfg c conn)
   pure ()
 
 -- | A 'Box' action for a socket client.

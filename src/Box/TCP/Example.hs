@@ -14,13 +14,13 @@ It's a box. It's a socket. It's an example.
 module Box.TCP.Example where
 
 import Box
-import Box.TCP
 import Box.Socket.Types
+import Box.TCP
 import Control.Concurrent.Async
 import Data.ByteString
+import Data.Profunctor
 import Data.Text
 import Data.Text.Encoding
-import Data.Profunctor
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -49,7 +49,7 @@ senderExample ts = do
 senderLinesExample :: [Text] -> IO [Text]
 senderLinesExample ts = do
   (c, r) <- refCommitter
-  a <- async (serverBox defaultTCPConfig (CloseAfter 0.2) . (fromLineBox "\n") . Box mempty <$|> qList ts)
+  a <- async (serverBox defaultTCPConfig (CloseAfter 0.2) . fromLineBox "\n" . Box mempty <$|> qList ts)
   sleep 0.2
   clientBox defaultTCPConfig (CloseAfter 0.5) (fromLineBox "\n" $ Box c mempty)
   sleep 0.6
@@ -63,8 +63,9 @@ senderLinesExample ts = do
 echoExample :: [ByteString] -> IO [ByteString]
 echoExample ts = do
   (c, r) <- refCommitter
-  a <- async
-    (responseServer defaultTCPConfig (pure . (("echo: " <>))))
+  a <-
+    async
+      (responseServer defaultTCPConfig (pure . ("echo: " <>)))
   sleep 0.1
   clientBox defaultTCPConfig (CloseAfter 0.2) . Box c <$|> qList ts
   sleep 0.1
@@ -86,6 +87,5 @@ clientIO =
 -- *** Exception: Network.Socket.bind: resource busy (Address already in use)
 --
 -- >>> cancel a
---
 serverIO :: IO ()
 serverIO = serverBox defaultTCPConfig (CloseAfter 0) (dimap decodeUtf8Lenient encodeUtf8 (stdBox "q"))

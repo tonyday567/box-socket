@@ -23,15 +23,15 @@ module Box.Websocket
 where
 
 import Box
+import Box.Socket.Types
 import Control.Concurrent.Async
+import Control.Exception
 import Control.Monad
 import Data.ByteString qualified as BS
-import Data.Text (Text, pack, unpack)
-import GHC.Generics ( Generic )
-import Network.WebSockets
-import Control.Exception
 import Data.Functor.Contravariant
-import Box.Socket.Types
+import Data.Text (Text, pack, unpack)
+import GHC.Generics (Generic)
+import Network.WebSockets
 
 -- | Socket configuration
 --
@@ -55,8 +55,9 @@ connect c = Codensity $ \action ->
 
 -- | serve an action (ie a server)
 serve :: SocketConfig -> Codensity IO Connection
-serve c = Codensity $
-  runServerWithOptions (defaultServerOptions { serverHost = (unpack $ host c), serverPort = port c}) . upgrade
+serve c =
+  Codensity $
+    runServerWithOptions (defaultServerOptions {serverHost = unpack (host c), serverPort = port c}) . upgrade
   where
     upgrade action p = void $ action <$|> pending p
 
@@ -69,7 +70,7 @@ serverApp b p = upgrade (duplex (CloseAfter 0.2) b) p
     upgrade action p' = void $ action <$|> pending p'
 
 -- | Given a 'PendingConnection', provide a 'Connection' continuation.
-pending:: PendingConnection -> Codensity IO Connection
+pending :: PendingConnection -> Codensity IO Connection
 pending p = Codensity $ \action ->
   bracket
     (acceptRequest p)
@@ -154,7 +155,7 @@ sender_ e cLog conn = go
             Right () -> go
 
 -- | A two-way connection. Closes if it receives a 'CloseRequest' exception, or if 'PostSend' is 'CloseAfter'.
-duplex::
+duplex ::
   (WebSocketsData a) =>
   PostSend ->
   Box IO a a ->
@@ -162,13 +163,14 @@ duplex::
   IO ()
 duplex ps (Box c e) conn = do
   concurrentlyRight
-    (do
+    ( do
         status <- sender e conn
         case (ps, status) of
           (CloseAfter s, SocketOpen) -> do
             sleep s
-            (sendClose conn ("close after sending" :: Text))
-          _ -> pure ())
+            sendClose conn ("close after sending" :: Text)
+          _ -> pure ()
+    )
     (receiver c conn)
 
 -- | A two-way connection. Closes if it receives a 'CloseRequest' exception, or if 'PostSend' is 'CloseAfter'. With event logging.
@@ -181,19 +183,20 @@ duplex_ ::
   IO ()
 duplex_ ps cLog (Box c e) conn = do
   concurrentlyRight
-    (do
-        status <- sender_ e (contramap ("sender_:"<>) cLog) conn
+    ( do
+        status <- sender_ e (contramap ("sender_:" <>) cLog) conn
         _ <- commit cLog ("sender_ closed with " <> pack (show status))
         case (ps, status) of
           (CloseAfter s, SocketOpen) -> do
             sleep s
-            (sendClose conn ("close after sending" :: Text))
-          _ -> pure ())
-    (do
-       receiver_ c (contramap ("receiver_:"<>) cLog) conn
-       void $ commit cLog ("receiver_ closed")
-       )
-  void $ commit cLog ("duplex_ closed")
+            sendClose conn ("close after sending" :: Text)
+          _ -> pure ()
+    )
+    ( do
+        receiver_ c (contramap ("receiver_:" <>) cLog) conn
+        void $ commit cLog "receiver_ closed"
+    )
+  void $ commit cLog "duplex_ closed"
 
 -- | A 'Box' action for a socket client.
 clientBox ::
