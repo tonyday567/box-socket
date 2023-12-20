@@ -1,0 +1,34 @@
+#+TITLE: box-socket
+
+[[https://hackage.haskell.org/package/box][file:https://img.shields.io/hackage/v/box-socket.svg]] [[https://github.com/tonyday567/box/actions?query=workflow%3Ahaskell-ci][file:https://github.com/tonyday567/box-socket/workflows/haskell-ci/badge.svg]]
+
+Socket API based on the box library, with websockets and TCP support.
+
+* Usage
+
+#+begin_src haskell-ng
+:set -XOverloadedStrings
+import Box
+import Box.Socket.Types
+import Box.Websocket
+#+end_src
+
+IO client:
+
+#+begin_src haskell-ng :results output
+clientBox defaultSocketConfig (CloseAfter 0) (stdBox "q")
+#+end_src
+
+IO server:
+
+#+begin_src haskell-ng :results output
+serverBox defaultSocketConfig (CloseAfter 0) (stdBox "q")
+#+end_src
+
+See examples in Box.Websocket.Example and Box.TCP.Example for a variety of usage.
+
+* Design
+
+- The API attempts to be similar for TCP and Websocket
+
+- A Codensity, continuation passing style is encouraged, similar to the box library.

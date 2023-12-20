@@ -52,19 +52,21 @@ data TCPEnv = TCPEnv
     sockaddr :: NS.SockAddr
   }
 
+-- | connect an action (ie a client)
 connect :: TCPConfig -> Codensity IO TCPEnv
 connect cfg =
   Codensity $
     NS.connect (unpack $ host cfg) (unpack $ port cfg)
       . (\action (s, a) -> action (TCPEnv s a))
 
+-- | serve an action (ie a server)
 serve :: TCPConfig -> Codensity IO TCPEnv
 serve cfg =
   Codensity $
     NS.serve (hostPreference cfg) (unpack $ port cfg)
       . (\action (s, a) -> void $ action (TCPEnv s a))
 
--- | Commit received messages.
+-- | Commit received ByteStrings.
 receiver ::
   TCPConfig ->
   Committer IO ByteString ->
@@ -78,7 +80,7 @@ receiver cfg c conn = go
         Nothing -> pure ()
         Just bs -> commit c bs >> go
 
--- | Send emitted messages, returning whether the socket remained open (the 'Emitter' ran out of emits) or closed (a 'CloseRequest' was received).
+-- | Send emitted ByteStrings.
 sender ::
   Emitter IO ByteString ->
   Socket ->
@@ -91,7 +93,7 @@ sender e conn = go
         Nothing -> pure SocketOpen
         Just bs' -> NS.send conn bs' >> go
 
--- | A two-way connection. Closes if it receives a 'CloseRequest' exception, or if 'PostSend' is 'CloseAfter'.
+-- | A two-way connection.
 duplex ::
   TCPConfig ->
   PostSend ->
@@ -110,7 +112,7 @@ duplex cfg ps (Box c e) conn = do
       (receiver cfg c conn)
   pure ()
 
--- | A 'Box' action for a socket client.
+-- | A 'Box' action for a client.
 clientBox ::
   TCPConfig ->
   PostSend ->
@@ -118,14 +120,14 @@ clientBox ::
   IO ()
 clientBox cfg ps b = duplex cfg ps b . socket <$|> connect cfg
 
--- | A 'CoBox' socket server.
+-- | A client 'CoBox'.
 clientCoBox ::
   TCPConfig ->
   PostSend ->
   CoBox IO ByteString ByteString
 clientCoBox cfg ps = fromAction (clientBox cfg ps)
 
--- | A 'Box' action for a socket server.
+-- | A 'Box' action for a server.
 serverBox ::
   TCPConfig ->
   PostSend ->
@@ -133,13 +135,13 @@ serverBox ::
   IO ()
 serverBox cfg ps b = duplex cfg ps b . socket <$|> serve cfg
 
--- | A 'CoBox' socket server.
+-- | A server 'CoBox'.
 serverCoBox ::
   TCPConfig ->
   PostSend ->
   CoBox IO ByteString ByteString
 serverCoBox cfg ps = fromAction (serverBox cfg ps)
 
--- | A receiver that applies a response function to received Text.
+-- | A receiver that applies a response function to received ByteStrings.
 responseServer :: TCPConfig -> (ByteString -> Maybe ByteString) -> IO ()
 responseServer cfg f = fuse (pure . f) <$|> serverCoBox cfg (CloseAfter 0.5)

@@ -5,12 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wall #-}
 
-{-
-
-It's a box. It's a socket. It's an example.
-
--}
-
+-- | It's a box. It's a TCP socket. It's an example.
 module Box.TCP.Example where
 
 import Box
@@ -30,7 +25,9 @@ import Data.Text.Encoding
 
 -- | A server that only sends and a client that only receives.
 --
--- >>> senderExample ["a","b"]
+-- The result here is indeterminate: it can return ["ab"] or ["a","b"] depending on when the client and servers fire.
+--
+-- > senderExample ["a","b"]
 -- ["ab"]
 senderExample :: [ByteString] -> IO [ByteString]
 senderExample ts = do
