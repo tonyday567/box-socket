@@ -61,6 +61,7 @@ serve c =
   where
     upgrade action p = void $ action <$|> pending p
 
+-- | Attach a box to a 'PendingConnection' in wai-style.
 serverApp ::
   Box IO Text Text ->
   PendingConnection ->
@@ -198,7 +199,7 @@ duplex_ ps cLog (Box c e) conn = do
     )
   void $ commit cLog "duplex_ closed"
 
--- | A 'Box' action for a socket client.
+-- | A 'Box' action for a client.
 clientBox ::
   (WebSocketsData a) =>
   SocketConfig ->
@@ -207,7 +208,7 @@ clientBox ::
   IO ()
 clientBox cfg ps b = duplex ps b <$|> connect cfg
 
--- | A socket client 'CoBox'.
+-- | A client 'CoBox'.
 clientCoBox ::
   (WebSocketsData a) =>
   SocketConfig ->
@@ -215,7 +216,7 @@ clientCoBox ::
   CoBox IO a a
 clientCoBox cfg ps = fromAction (clientBox cfg ps)
 
--- | A 'Box' action for a socket server.
+-- | A 'Box' action for a server.
 serverBox ::
   (WebSocketsData a) =>
   SocketConfig ->
@@ -224,7 +225,7 @@ serverBox ::
   IO ()
 serverBox cfg ps b = duplex ps b <$|> serve cfg
 
--- | A 'CoBox' socket server.
+-- | A server 'CoBox'.
 serverCoBox ::
   (WebSocketsData a) =>
   SocketConfig ->
@@ -232,6 +233,6 @@ serverCoBox ::
   CoBox IO a a
 serverCoBox cfg ps = fromAction (serverBox cfg ps)
 
--- | A receiver that applies a response function to received Text.
+-- | A receiver that applies a response function to received messages.
 responseServer :: (WebSocketsData a) => SocketConfig -> (a -> Maybe a) -> IO ()
 responseServer cfg f = fuse (pure . f) <$|> serverCoBox cfg (CloseAfter 0.5)
