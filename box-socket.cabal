@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name: box-socket
-version: 0.5.0.0
+version: 0.5.1.0
 license: BSD-3-Clause
 license-file: LICENSE
 copyright: Tony Day (c) 2017
@@ -13,7 +13,7 @@ synopsis: Box websockets
 description: Websockets built with the box library.
 build-type: Simple
 tested-with:
-    GHC ==8.10.7 || ==9.4.7 || ==9.6.3 || ==9.8.1
+    GHC ==8.10.7 || ==9.2.7 || ==9.4.7 || ==9.6.3 || ==9.8.1
 extra-doc-files:
     ChangeLog.md
     readme.org

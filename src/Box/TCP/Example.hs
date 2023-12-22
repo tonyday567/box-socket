@@ -75,7 +75,7 @@ echoExample ts = do
 -- *** Exception: Network.Socket.connect: <socket: ...>: does not exist (Connection refused)
 clientIO :: IO ()
 clientIO =
-  clientBox defaultTCPConfig (CloseAfter 0) (dimap decodeUtf8Lenient encodeUtf8 (stdBox "q"))
+  clientBox defaultTCPConfig (CloseAfter 0) (dimap decodeUtf8 encodeUtf8 (stdBox "q"))
 
 -- | "q" to close a client socket down. Ctrl-c to close the server. Reads and writes from std.
 --
@@ -85,4 +85,4 @@ clientIO =
 --
 -- >>> cancel a
 serverIO :: IO ()
-serverIO = serverBox defaultTCPConfig (CloseAfter 0) (dimap decodeUtf8Lenient encodeUtf8 (stdBox "q"))
+serverIO = serverBox defaultTCPConfig (CloseAfter 0) (dimap decodeUtf8 encodeUtf8 (stdBox "q"))
