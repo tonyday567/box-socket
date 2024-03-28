@@ -1,5 +1,3 @@
 packages:
   box-socket.cabal
 
-allow-newer:
-  websockets:text,
