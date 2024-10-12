@@ -1,6 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE TypeFamilies #-}
-
 -- | Abstract sockets connected to 'Box'es.
 module Box.Socket.Types
   ( PostSend (..),

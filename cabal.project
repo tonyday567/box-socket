@@ -1,3 +1,6 @@
 packages:
   box-socket.cabal
 
+write-ghc-environment-files: always
+
+allow-newer: websockets:containers
