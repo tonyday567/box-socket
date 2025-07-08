@@ -1,4 +1,4 @@
-[![img](https://img.shields.io/hackage/v/box-socket.svg)](https://hackage.haskell.org/package/box) [![img](https://github.com/tonyday567/box-socket/actions/workflows/haskell-ci.yml/badge.svg)](https://github.com/tonyday567/box/actions/workflows/haskell-ci.yml)
+[![img](https://img.shields.io/hackage/v/box-socket.svg)](https://hackage.haskell.org/package/box-socket) [![img](https://github.com/tonyday567/box-socket/actions/workflows/haskell-ci.yml/badge.svg)](https://github.com/tonyday567/box/actions/workflows/haskell-ci.yml)
 
 Socket API based on the box library, with websockets and TCP support.
 
