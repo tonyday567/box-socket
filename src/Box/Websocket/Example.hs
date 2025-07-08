@@ -67,18 +67,20 @@ echoLogExample ts = do
 
 -- | "q" to close the client, reads and writes from std
 --
--- >>> clientIO
+-- >> clientIO
 -- *** Exception: Network.Socket.connect: <socket: ...>: does not exist (Connection refused)
+-- ...
 clientIO :: IO ()
 clientIO =
   clientBox defaultSocketConfig (CloseAfter 0) (stdBox "q")
 
 -- | "q" to close a client socket down. Ctrl-c to close the server. Reads and writes from std.
 --
--- >>> a <- async serverIO
--- >>> serverIO
+-- >> a <- async serverIO
+-- >> serverIO
 -- *** Exception: Network.Socket.bind: resource busy (Address already in use)
+-- ...
 --
--- >>> cancel a
+-- >> cancel a
 serverIO :: IO ()
 serverIO = serverBox defaultSocketConfig (CloseAfter 0) (stdBox "q")

@@ -1,15 +1,7 @@
-
-# Table of Contents
-
-1.  [Usage](#org6c95983)
-2.  [Design](#org6cb8437)
-
-[![img](https://img.shields.io/hackage/v/box-socket.svg)](https://hackage.haskell.org/package/box) [![img](https://github.com/tonyday567/box-socket/workflows/haskell-ci/badge.svg)](https://github.com/tonyday567/box/actions?query=workflow%3Ahaskell-ci)
+[![img](https://img.shields.io/hackage/v/box-socket.svg)](https://hackage.haskell.org/package/box) [![img](https://github.com/tonyday567/box-socket/actions/workflows/haskell-ci.yml/badge.svg)](https://github.com/tonyday567/box/actions/workflows/haskell-ci.yml)
 
 Socket API based on the box library, with websockets and TCP support.
 
-
-<a id="org6c95983"></a>
 
 # Usage
 
@@ -28,8 +20,6 @@ IO server:
 
 See examples in Box.Websocket.Example and Box.TCP.Example for a variety of usage.
 
-
-<a id="org6cb8437"></a>
 
 # Design
 
