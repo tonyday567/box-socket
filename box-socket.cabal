@@ -13,10 +13,9 @@ synopsis: Box websockets
 description: Websockets built with the box library.
 build-type: Simple
 tested-with:
-  ghc ==9.6.7
-  ghc ==9.8.4
   ghc ==9.10.2
   ghc ==9.12.2
+  ghc ==9.14.1
 
 extra-doc-files:
   ChangeLog.md
